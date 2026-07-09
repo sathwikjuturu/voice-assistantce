@@ -32,6 +32,9 @@ jobs:
       - name: Setup Chrome
         uses: browser-actions/setup-chrome@v1
 
+      - name: Install ChromeDriver
+        run: npm install -g chromedriver --detect_chromedriver_version
+
       - name: Build static files
         run: python tests/build.py
 
