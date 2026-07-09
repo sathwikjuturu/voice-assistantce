@@ -7,7 +7,6 @@ on:
     branches: [ "main" ]
   workflow_dispatch:
 
-# Permissions needed for GitHub Pages deployment
 permissions:
   contents: read
   pages: write
@@ -18,13 +17,13 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # ── Job 1: Deploy to GitHub Pages (best-effort) ─────────────────────────────
   deploy:
+    runs-on: ubuntu-latest
+    continue-on-error: true   # never blocks the test job if Pages is not configured
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    outputs:
-      page_url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -37,7 +36,7 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
-      - name: Build / Package static files
+      - name: Build static files
         run: python tests/build.py
 
       - name: Upload Pages artifact
@@ -49,8 +48,8 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
+  # ── Job 2: E2E Selenium Tests (always runs against localhost) ───────────────
   test:
-    needs: deploy
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -67,18 +66,16 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r tests/requirements.txt
 
+      - name: Build and Serve static files
+        run: |
+          python tests/build.py
+          python -m http.server 3000 --directory dist &
+          sleep 3
+
       - name: Run E2E Selenium Tests
         env:
-          BASE_URL: ${{ needs.deploy.outputs.page_url }}
-        run: |
-          if [ -z "$BASE_URL" ] || [ "$BASE_URL" = "null" ]; then
-            echo "BASE_URL is empty or null. Starting a local static file server for fallback testing..."
-            python tests/build.py
-            python -m http.server 3000 --directory dist &
-            sleep 3
-            export BASE_URL="http://localhost:3000"
-          fi
-          python tests/run_tests.py
+          BASE_URL: http://localhost:3000
+        run: python tests/run_tests.py
 
       - name: Upload Test Results Artifacts
         if: always()
