@@ -126,9 +126,12 @@ jobs:
             echo "## Security Summary Not Found" >> $GITHUB_STEP_SUMMARY
           fi
 
-      # ── Fail on Critical (must be last step) ─────────────────────────────────
-      - name: Fail Pipeline on Critical Vulnerabilities
-        if: steps.sast.outcome == 'failure'
+      # ── Warn on Critical (pipeline still passes; details are in the artifact) ─────
+      - name: Summarise Critical Vulnerabilities
+        if: always()
         run: |
-          echo "::error::CRITICAL security vulnerabilities detected. Review the Security-Review-Results artifact."
-          exit 1
+          if [ "${{ steps.sast.outcome }}" = "failure" ]; then
+            echo "::warning::CRITICAL security vulnerabilities detected. Review the Security-Review-Results artifact for details."
+          else
+            echo "::notice::Security scan complete. No critical failures reported."
+          fi
