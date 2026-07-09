@@ -1,4 +1,4 @@
-name: Deploy and Live Test
+name: Selenium E2E Tests
 
 on:
   push:
