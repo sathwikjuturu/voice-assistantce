@@ -25,16 +25,6 @@ jobs:
       - name: Install backend dependencies
         run: npm ci --prefer-offline || npm install
 
-      - name: Start backend server
-        env:
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-        run: |
-          node server.js &
-          echo "SERVER_PID=$!" >> $GITHUB_ENV
-          sleep 6
-
       # ── Python Setup ─────────────────────────────────────────────────────────
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -84,7 +74,12 @@ jobs:
           DEVICE_NAME: "Android Emulator"
           PLATFORM_VERSION: "13.0"
           GITHUB_RUN_NUMBER: ${{ github.run_number }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: |
+          node server.js &
+          sleep 6
           cd "${{ github.workspace }}"
           python tests/appium/run_appium_e2e.py
         continue-on-error: true
@@ -104,13 +99,5 @@ jobs:
         run: |
           if [ -f "Appium Test Results/Summary/mobile_summary.md" ]; then
             cat "Appium Test Results/Summary/mobile_summary.md" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "## Appium Mobile E2E Tests" >> $GITHUB_STEP_SUMMARY
-            echo "No summary generated — check uploaded artifacts." >> $GITHUB_STEP_SUMMARY
           fi
 
-      # ── Cleanup ──────────────────────────────────────────────────────────────
-      - name: Kill background server
-        if: always()
-        run: |
-          kill $SERVER_PID 2>/dev/null || true
