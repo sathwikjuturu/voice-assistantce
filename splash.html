@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VoiceMail AI - Smart Assistant</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        /* Smooth transitions between pages */
+        body {
+            animation: fadeIn 0.3s ease-in-out forwards;
+        }
+    </style>
+    <script>
+        // Make splash redirect automatically
+        window.onload = function() {
+            if (window.location.pathname.endsWith('splash.html') || window.location.pathname.endsWith('/')) {
+                setTimeout(function() {
+                    window.location.href = 'onboarding1.html';
+                }, 2500);
+            }
+        };
+    </script>
+</head>
+<body>
+<div id="app">
+
+    <div class="auth-wrapper">
+        <div class="auth-box glass-panel" style="background: transparent; border: none; box-shadow: none;">
+            <div class="listening-indicator" style="margin: 0 auto 2rem auto; width: 80px; height: 80px; font-size: 2rem;">
+                <i class="fa-solid fa-microphone"></i>
+            </div>
+            <h1 class="gradient-text" style="font-size: 3rem;">VoiceMail AI</h1>
+            <p style="font-size: 1.2rem; margin-top: 1rem;">Loading your smart assistant...</p>
+        </div>
+    </div>
+
+</div>
+    <!-- Toast Notifications -->
+    <div id="toast-container"></div>
+<script src="js/app.js"></script>
+</body>
+</html>

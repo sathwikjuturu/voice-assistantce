@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VoiceMail AI - Smart Assistant</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        /* Smooth transitions between pages */
+        body {
+            animation: fadeIn 0.3s ease-in-out forwards;
+        }
+    </style>
+    <script>
+        // Make splash redirect automatically
+        window.onload = function() {
+            if (window.location.pathname.endsWith('splash.html') || window.location.pathname.endsWith('/')) {
+                setTimeout(function() {
+                    window.location.href = 'onboarding1.html';
+                }, 2500);
+            }
+        };
+    </script>
+</head>
+<body>
+<div id="app">
+
+    <div class="dashboard-layout">
+        <nav class="sidebar">
+            <div class="sidebar-logo gradient-text">
+                <i class="fa-solid fa-microphone-lines"></i> VoiceMail
+            </div>
+            <ul style="flex: 1;">
+                <li style="font-size: 0.8rem; color: var(--text-muted); margin: 1.5rem 0 0.5rem 0.5rem; text-transform: uppercase; letter-spacing: 1px;">Main</li>
+<a href="dashboard.html"><li class="nav-item "><i class="fa-solid fa-house"></i> Dashboard</li></a>
+<a href="inbox_primary.html"><li class="nav-item "><i class="fa-solid fa-inbox"></i> Inbox</li></a>
+<a href="sent_items.html"><li class="nav-item "><i class="fa-solid fa-paper-plane"></i> Sent</li></a>
+<a href="drafts.html"><li class="nav-item "><i class="fa-solid fa-file-lines"></i> Drafts</li></a>
+<li style="font-size: 0.8rem; color: var(--text-muted); margin: 1.5rem 0 0.5rem 0.5rem; text-transform: uppercase; letter-spacing: 1px;">Organize</li>
+<a href="custom_folders.html"><li class="nav-item "><i class="fa-solid fa-folder"></i> Folders</li></a>
+<a href="contacts.html"><li class="nav-item active"><i class="fa-solid fa-users"></i> Contacts</li></a>
+<a href="calendar.html"><li class="nav-item "><i class="fa-solid fa-calendar"></i> Calendar</li></a>
+<li style="font-size: 0.8rem; color: var(--text-muted); margin: 1.5rem 0 0.5rem 0.5rem; text-transform: uppercase; letter-spacing: 1px;">Preferences</li>
+<a href="settings_general.html"><li class="nav-item "><i class="fa-solid fa-gear"></i> Settings</li></a>
+<a href="help.html"><li class="nav-item "><i class="fa-solid fa-circle-question"></i> Help</li></a>
+
+            </ul>
+            <a href="login.html"><li class="nav-item" style="color: var(--error);"><i class="fa-solid fa-arrow-right-from-bracket"></i> Logout</li></a>
+        </nav>
+        
+        <main class="main-content">
+            <header class="topbar">
+                <div class="search-bar" onclick="window.location.href='search.html'" style="cursor: pointer;">
+                    <i class="fa-solid fa-magnifying-glass text-muted"></i>
+                    <input type="text" placeholder="Search emails, contacts..." style="pointer-events: none;">
+                </div>
+                <div class="user-profile">
+                    <a href="notifications.html" style="color: var(--text-muted); font-size: 1.2rem; margin-right: 1rem;"><i class="fa-solid fa-bell"></i></a>
+                    <a href="profile.html" style="display: flex; align-items: center; gap: 0.8rem; color: white;">
+                        <div class="avatar">JD</div>
+                        <span style="font-weight: 500;">John Doe</span>
+                    </a>
+                </div>
+            </header>
+            <div class="page-content">
+                
+    <div class="header-flex">
+        <h2>Contacts</h2>
+        <button class="btn" style="width: auto;"><i class="fa-solid fa-user-plus"></i> Add Contact</button>
+    </div>
+    <div class="glass-panel" style="padding: 1rem;">
+        <div class="email-list">
+            <div class="email-item" onclick="window.location.href='contact_details.html'">
+                <div class="avatar" style="margin-right: 1rem;">SJ</div>
+                <div style="flex: 1;"><strong>Sarah Jenkins</strong><br><span class="text-muted">sarah.j@company.com</span></div>
+            </div>
+            <div class="email-item">
+                <div class="avatar" style="margin-right: 1rem; background: #ec4899;">MR</div>
+                <div style="flex: 1;"><strong>Mike Ross</strong><br><span class="text-muted">mike.ross@legal.com</span></div>
+            </div>
+        </div>
+    </div>
+
+            </div>
+        </main>
+    </div>
+    
+</div>
+
+    <!-- Global Floating Mic Button for Voice Commands -->
+    <div id="voice-assistant-btn" onclick="window.location.href='voice_overlay.html'">
+        <div class="mic-ripple"></div>
+        <i class="fa-solid fa-microphone"></i>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container"></div>
+<script src="js/app.js"></script>
+    <script src="js/voice-engine.js"></script>
+</body>
+</html>

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VoiceMail AI - Smart Assistant</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        /* Smooth transitions between pages */
+        body {
+            animation: fadeIn 0.3s ease-in-out forwards;
+        }
+    </style>
+</head>
+<body>
+<div id="app">
+
+    <div class="auth-wrapper">
+        <div class="auth-box glass-panel">
+            <h2>Create Account</h2>
+            <p>Join the future of email</p>
+            <div class="form-group">
+                <label>Full Name</label>
+                <input type="text" placeholder="Full Name" id="signup-name">
+            </div>
+            <div class="form-group">
+                <label>Email Address</label>
+                <input type="email" placeholder="you@example.com" id="signup-email">
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" placeholder="••••••••" id="signup-password">
+            </div>
+            <button class="btn" id="signup-btn">Create Account</button>
+            <p style="margin-top: 1.5rem; margin-bottom: 0;">Already have an account? <a href="login.html">Login</a></p>
+        </div>
+    </div>
+
+</div>
+    <!-- Toast Notifications -->
+    <div id="toast-container"></div>
+<script src="js/app.js"></script>
+    <script src="js/voice-engine.js"></script>
+</body>
+</html>

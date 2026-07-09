@@ -1,0 +1,134 @@
+name: Security Review & DevSecOps
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  security-audit:
+    runs-on: ubuntu-latest
+    # Do NOT fail the whole job on the security scanner exit code —
+    # we capture the exit status manually and use it to annotate the summary.
+    continue-on-error: false
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      # ── Phase 1: Detect Backend Technology ──────────────────────────────────
+      - name: Detect Backend Technology
+        id: detect
+        run: |
+          if [ -f "package.json" ]; then
+            TECH="NodeJS / Express"
+            echo "Detected: $TECH"
+          elif [ -f "requirements.txt" ]; then
+            TECH="Python"
+            echo "Detected: $TECH"
+          else
+            TECH="Unknown"
+            echo "Warning: Unknown backend technology"
+          fi
+          echo "tech=$TECH" >> $GITHUB_OUTPUT
+
+      # ── Phase 2: Dependency Scanning ────────────────────────────────────────
+      - name: Install Node Dependencies
+        run: npm ci --prefer-offline || npm install
+
+      - name: Run npm Dependency Audit
+        run: |
+          npm audit --json > "Vulnerability Test Results/npm-audit.json" 2>&1 || true
+          npm audit 2>&1 || true
+
+      # ── Phase 3: SAST + Report Generation ───────────────────────────────────
+      - name: Install Python Report Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install openpyxl requests
+
+      - name: Run SAST + Generate Security Reports
+        id: sast
+        run: |
+          python tests/generate_security_reports.py
+          echo "exit_code=$?" >> $GITHUB_OUTPUT
+        continue-on-error: true
+
+      # ── Phase 4: Live DAST Probe (if server starts) ─────────────────────────
+      - name: Start Backend Server for DAST
+        run: |
+          node server.js &
+          sleep 6
+        continue-on-error: true
+
+      - name: Run DAST Security Probes
+        run: |
+          python -c "
+          import requests, json, os
+
+          BASE = 'http://localhost:3000'
+          results = []
+
+          def probe(label, method, url, **kwargs):
+              try:
+                  r = getattr(requests, method)(url, timeout=5, **kwargs)
+                  results.append({'test': label, 'status': r.status_code,
+                                  'cors': r.headers.get('Access-Control-Allow-Origin',''),
+                                  'xpb': r.headers.get('X-Powered-By',''),
+                                  'xcto': r.headers.get('X-Content-Type-Options','MISSING'),
+                                  'xfo': r.headers.get('X-Frame-Options','MISSING'),
+                                  'csp': r.headers.get('Content-Security-Policy','MISSING'),
+                                  'hsts': r.headers.get('Strict-Transport-Security','MISSING')})
+              except Exception as e:
+                  results.append({'test': label, 'status': 'ERROR', 'note': str(e)})
+
+          probe('No-Auth on /api/emails',     'get', f'{BASE}/api/emails')
+          probe('Invalid-JWT on /api/emails', 'get', f'{BASE}/api/emails', headers={'Authorization':'Bearer garbage.token.here'})
+          probe('CORS-wildcard check',        'get', f'{BASE}/api/auth/ping', headers={'Origin':'https://evil.com'})
+          probe('Security-headers check',     'get', f'{BASE}/api/auth/ping')
+          for i in range(5):
+              probe(f'Rate-limit-login-{i}', 'post', f'{BASE}/api/auth/login', json={'email':'a@b.com','password':'wrong'})
+
+          os.makedirs('Vulnerability Test Results', exist_ok=True)
+          with open('Vulnerability Test Results/dast-results.json','w') as f:
+              json.dump(results, f, indent=2)
+          print(json.dumps(results, indent=2))
+          " 2>&1 || true
+
+      # ── Upload Artifacts ─────────────────────────────────────────────────────
+      - name: Upload Security Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Security-Review-Results
+          path: Vulnerability Test Results/
+
+      # ── Publish Step Summary ─────────────────────────────────────────────────
+      - name: Publish Security Summary
+        if: always()
+        run: |
+          if [ -f "Vulnerability Test Results/executive-summary.md" ]; then
+            cat "Vulnerability Test Results/executive-summary.md" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## Security Summary Not Found" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      # ── Fail on Critical (must be last step) ─────────────────────────────────
+      - name: Fail Pipeline on Critical Vulnerabilities
+        if: steps.sast.outcome == 'failure'
+        run: |
+          echo "::error::CRITICAL security vulnerabilities detected. Review the Security-Review-Results artifact."
+          exit 1

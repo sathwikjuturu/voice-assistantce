@@ -1,0 +1,10 @@
+[build]
+command = "npm install"
+publish = "./"
+
+# Proxy API calls to an external backend (replace <BACKEND_URL> with your actual API host)
+[[redirects]]
+from = "/api/*"
+to = "https://<BACKEND_URL>/api/:splat"
+status = 200
+force = true
