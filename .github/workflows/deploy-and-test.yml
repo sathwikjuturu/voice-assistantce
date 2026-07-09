@@ -70,7 +70,15 @@ jobs:
       - name: Run E2E Selenium Tests
         env:
           BASE_URL: ${{ needs.deploy.outputs.page_url }}
-        run: python tests/run_tests.py
+        run: |
+          if [ -z "$BASE_URL" ] || [ "$BASE_URL" = "null" ]; then
+            echo "BASE_URL is empty or null. Starting a local static file server for fallback testing..."
+            python tests/build.py
+            python -m http.server 3000 --directory dist &
+            sleep 3
+            export BASE_URL="http://localhost:3000"
+          fi
+          python tests/run_tests.py
 
       - name: Upload Test Results Artifacts
         if: always()

@@ -49,6 +49,9 @@ jobs:
       - name: Install Node Dependencies
         run: npm ci --prefer-offline || npm install
 
+      - name: Create Vulnerability Test Results Directory
+        run: mkdir -p "Vulnerability Test Results"
+
       - name: Run npm Dependency Audit
         run: |
           npm audit --json > "Vulnerability Test Results/npm-audit.json" 2>&1 || true
@@ -68,14 +71,10 @@ jobs:
         continue-on-error: true
 
       # ── Phase 4: Live DAST Probe (if server starts) ─────────────────────────
-      - name: Start Backend Server for DAST
+      - name: Start Backend Server and Run DAST Security Probes
         run: |
           node server.js &
           sleep 6
-        continue-on-error: true
-
-      - name: Run DAST Security Probes
-        run: |
           python -c "
           import requests, json, os
 
@@ -107,6 +106,7 @@ jobs:
               json.dump(results, f, indent=2)
           print(json.dumps(results, indent=2))
           " 2>&1 || true
+        continue-on-error: true
 
       # ── Upload Artifacts ─────────────────────────────────────────────────────
       - name: Upload Security Reports

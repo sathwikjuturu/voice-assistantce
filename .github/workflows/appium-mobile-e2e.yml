@@ -55,12 +55,6 @@ jobs:
           appium driver install uiautomator2
         continue-on-error: true
 
-      - name: Start Appium Server
-        run: |
-          appium server --port 4723 --base-path /wd/hub &
-          sleep 8
-        continue-on-error: true
-
       # ── Chrome for Fallback ──────────────────────────────────────────────────
       - name: Install Chrome & ChromeDriver (Fallback Mode)
         uses: browser-actions/setup-chrome@v1
@@ -78,8 +72,11 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: |
+          # Start Appium Server
+          appium server --port 4723 --base-path /wd/hub &
+          # Start Backend Server
           node server.js &
-          sleep 6
+          sleep 8
           cd "${{ github.workspace }}"
           python tests/appium/run_appium_e2e.py
         continue-on-error: true
