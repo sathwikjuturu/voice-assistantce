@@ -176,7 +176,9 @@ ul { list-style: none; }
     gap: 0.8rem;
 }
 .sidebar ul {
-    overflow-y: auto;
+    flex: 1 !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
     scrollbar-width: none;
     -ms-overflow-style: none;
 }
