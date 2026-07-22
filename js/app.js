@@ -1317,4 +1317,45 @@ function runVoiceOverlayListeningLoop() {
   });
 }
 
+// --- Dynamic Sidebar Collapsible Toggler ---
+(function() {
+  function initSidebarToggler() {
+    const sidebar = document.querySelector('.sidebar');
+    if (!sidebar || document.querySelector('.sidebar-toggle-btn')) return;
 
+    // Create toggle button
+    const toggleBtn = document.createElement('button');
+    toggleBtn.className = 'sidebar-toggle-btn';
+    toggleBtn.innerHTML = '<i class="fa-solid fa-chevron-right"></i>';
+
+    // Append button to sidebar
+    sidebar.appendChild(toggleBtn);
+
+    // Event listener
+    toggleBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      sidebar.classList.toggle('expanded');
+      
+      const icon = toggleBtn.querySelector('i');
+      if (sidebar.classList.contains('expanded')) {
+        icon.className = 'fa-solid fa-chevron-left';
+      } else {
+        icon.className = 'fa-solid fa-chevron-right';
+      }
+    });
+
+    // Collapse sidebar if clicking outside of it
+    document.addEventListener('click', (e) => {
+      if (sidebar.classList.contains('expanded') && !sidebar.contains(e.target)) {
+        sidebar.classList.remove('expanded');
+        toggleBtn.querySelector('i').className = 'fa-solid fa-chevron-right';
+      }
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initSidebarToggler);
+  } else {
+    initSidebarToggler();
+  }
+})();
