@@ -21,7 +21,11 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Initialize Database
-initDb();
+initDb().then(() => {
+  console.log('[Database] Connection established successfully.');
+}).catch(err => {
+  console.error('[Database Error] Initialization failed:', err);
+});
 
 // Middleware
 app.use(cors());
