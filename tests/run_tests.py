@@ -128,8 +128,9 @@ def run_tests():
                     from selenium.webdriver.support.ui import WebDriverWait
                     from selenium.webdriver.support import expected_conditions as EC
                     WebDriverWait(driver, 10).until(
-                        EC.presence_of_element_located((By.CSS_SELECTOR, ".sidebar-logo"))
+                        EC.visibility_of_element_located((By.CSS_SELECTOR, ".sidebar-logo"))
                     )
+                    time.sleep(0.5)
                 
                 el = driver.find_element(By.CSS_SELECTOR, s)
                 if ct == "presence":
