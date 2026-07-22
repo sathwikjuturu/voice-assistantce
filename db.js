@@ -125,37 +125,93 @@ export async function initDb() {
 
   if (supabase) {
     try {
-      console.log('[Supabase] Fetching database state...');
-      const { data, error } = await supabase
-        .from('app_data')
-        .select('value')
-        .eq('key', 'json_db')
-        .maybeSingle();
-
-      if (error) {
-        throw error;
-      }
-
-      if (!data) {
-        // Table exists but is empty, seed it
-        console.log('[Supabase] Database empty. Seeding Supabase...');
-        const { error: insertError } = await supabase
-          .from('app_data')
-          .insert([{ key: 'json_db', value: seedData }]);
-        
-        if (insertError) throw insertError;
-        dbCache = seedData;
-      } else {
-        dbCache = data.value;
-      }
+      console.log('[Supabase] Fetching database tables...');
       
+      const [usersRes, emailsRes, contactsRes, calendarRes, settingsRes] = await Promise.all([
+        supabase.from('users').select('*'),
+        supabase.from('emails').select('*'),
+        supabase.from('contacts').select('*'),
+        supabase.from('calendar').select('*'),
+        supabase.from('settings').select('*').eq('id', 'global').maybeSingle()
+      ]);
+
+      if (usersRes.error) throw usersRes.error;
+      if (emailsRes.error) throw emailsRes.error;
+      if (contactsRes.error) throw contactsRes.error;
+      if (calendarRes.error) throw calendarRes.error;
+
+      // Map Users
+      const users = (usersRes.data || []).map(u => ({
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        password: u.password,
+        otp: u.otp,
+        otpExpiry: u.otp_expiry
+      }));
+
+      // Map Emails
+      const emails = (emailsRes.data || []).map(m => ({
+        id: m.id,
+        senderName: m.sender_name,
+        senderEmail: m.sender_email,
+        recipientEmail: m.recipient_email,
+        subject: m.subject,
+        body: m.body,
+        category: m.category,
+        folder: m.folder,
+        isRead: m.is_read,
+        isStarred: m.is_starred,
+        date: m.date
+      }));
+
+      // Map Contacts
+      const contacts = (contactsRes.data || []).map(c => ({
+        id: c.id,
+        name: c.name,
+        email: c.email,
+        phone: c.phone,
+        role: c.role
+      }));
+
+      // Map Calendar Events
+      const calendar = (calendarRes.data || []).map(e => ({
+        id: e.id,
+        title: e.title,
+        date: e.date,
+        time: e.time,
+        description: e.description
+      }));
+
+      // Map Settings
+      const s = settingsRes.data || {};
+      const settings = {
+        theme: s.theme || "dark",
+        voiceSpeed: s.voice_speed !== undefined ? s.voice_speed : 1.0,
+        voiceGender: s.voice_gender || "female",
+        voiceLanguage: s.voice_language || "en-US",
+        continuousListening: s.continuous_listening !== undefined ? s.continuous_listening : false,
+        noiseFiltering: s.noise_filtering !== undefined ? s.noise_filtering : true,
+        autoReadNew: s.auto_read_new !== undefined ? s.auto_read_new : false,
+        signature: s.signature || "Sent from my VoiceMail AI Assistant"
+      };
+
+      dbCache = { users, emails, contacts, calendar, settings };
+
+      // If Supabase has zero users, it is fresh. Seed it!
+      if (dbCache.users.length === 0) {
+        console.log('[Supabase] Empty database detected. Seeding Supabase...');
+        dbCache = seedData;
+        await writeDbToSupabase(seedData);
+      }
+
       // Sync local fallback file with Supabase data
       fs.writeFileSync(DB_FILE, JSON.stringify(dbCache, null, 2), 'utf-8');
-      console.log('[Supabase] Database initialized successfully.');
+      console.log('[Supabase] Database loaded successfully from relational tables.');
       return;
     } catch (err) {
-      console.warn('[Supabase warning] Could not load from Supabase table "app_data":', err.message);
-      console.warn('Ensure you have run the CREATE TABLE query in your Supabase SQL Editor.');
+      console.warn('[Supabase Warning] Could not load from relational tables:', err.message);
+      console.warn('Ensure you have run the relational tables setup query in your Supabase SQL Editor.');
     }
   }
 
@@ -193,17 +249,99 @@ export function writeDb(data) {
   // Write locally as backup
   fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf-8');
 
-  // Sync to Supabase in the background
+  // Sync to Supabase asynchronously
   if (supabase) {
-    supabase
-      .from('app_data')
-      .upsert({ key: 'json_db', value: data })
-      .then(({ error }) => {
-        if (error) {
-          console.error('[Supabase Sync Error]:', error.message);
-        } else {
-          console.log('[Supabase Sync] Database successfully synced.');
-        }
-      });
+    writeDbToSupabase(data).catch(err => {
+      console.error('[Supabase Sync Error]:', err.message);
+    });
   }
+}
+
+async function writeDbToSupabase(data) {
+  // 1. Sync Users
+  const dbUsers = data.users.map(u => ({
+    id: u.id,
+    name: u.name,
+    email: u.email,
+    password: u.password,
+    otp: u.otp,
+    otp_expiry: u.otpExpiry
+  }));
+  
+  // 2. Sync Emails
+  const dbEmails = data.emails.map(m => ({
+    id: m.id,
+    sender_name: m.senderName,
+    sender_email: m.senderEmail,
+    recipient_email: m.recipientEmail,
+    subject: m.subject,
+    body: m.body,
+    category: m.category,
+    folder: m.folder,
+    is_read: m.isRead,
+    is_starred: m.isStarred,
+    date: m.date
+  }));
+
+  // 3. Sync Contacts
+  const dbContacts = data.contacts.map(c => ({
+    id: c.id,
+    name: c.name,
+    email: c.email,
+    phone: c.phone,
+    role: c.role
+  }));
+
+  // 4. Sync Calendar Events
+  const dbCalendar = data.calendar.map(e => ({
+    id: e.id,
+    title: e.title,
+    date: e.date,
+    time: e.time,
+    description: e.description
+  }));
+
+  // 5. Sync Settings
+  const s = data.settings || {};
+  const dbSettings = {
+    id: 'global',
+    theme: s.theme,
+    voice_speed: s.voiceSpeed,
+    voice_gender: s.voiceGender,
+    voice_language: s.voiceLanguage,
+    continuous_listening: s.continuousListening,
+    noise_filtering: s.noiseFiltering,
+    auto_read_new: s.autoReadNew,
+    signature: s.signature
+  };
+
+  // Perform updates in parallel
+  await Promise.all([
+    supabase.from('users').upsert(dbUsers),
+    supabase.from('emails').upsert(dbEmails),
+    supabase.from('contacts').upsert(dbContacts),
+    supabase.from('calendar').upsert(dbCalendar),
+    supabase.from('settings').upsert(dbSettings)
+  ]);
+
+  // Sync deletions for emails, contacts, and events
+  const activeEmailIds = data.emails.map(m => m.id);
+  if (activeEmailIds.length > 0) {
+    const formatList = `(${activeEmailIds.map(id => `"${id}"`).join(',')})`;
+    await supabase.from('emails').delete().not('id', 'in', formatList);
+  }
+
+  const activeContactIds = data.contacts.map(c => c.id);
+  if (activeContactIds.length > 0) {
+    const formatList = `(${activeContactIds.map(id => `"${id}"`).join(',')})`;
+    await supabase.from('contacts').delete().not('id', 'in', formatList);
+  }
+
+  const activeCalendarIds = data.calendar.map(e => e.id);
+  if (activeCalendarIds.length > 0) {
+    const formatList = `(${activeCalendarIds.map(id => `"${id}"`).join(',')})`;
+    await supabase.from('calendar').delete().not('id', 'in', formatList);
+  }
+
+  console.log('[Supabase Sync] Relational database synchronized successfully.');
 }
