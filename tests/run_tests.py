@@ -14,7 +14,7 @@ sys.path.append(current_dir)
 sys.path.append(os.path.join(current_dir, 'pages'))
 sys.path.append(os.path.join(current_dir, 'test_suites'))
 
-import test_app_flow
+from test_suites import test_app_flow
 
 def setup_logger():
     log_dir = os.path.join("Test Results", "Logs")
