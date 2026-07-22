@@ -25,7 +25,7 @@ class BasePage:
 
     def click(self, locator, timeout=10):
         element = self.wait_for_element_visible(locator, timeout)
-        element.click()
+        self.driver.execute_script("arguments[0].click();", element)
 
     def type(self, locator, text, timeout=10):
         element = self.wait_for_element_visible(locator, timeout)

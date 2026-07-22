@@ -1,4 +1,5 @@
 from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
 from .base_page import BasePage
 
 class DashboardPage(BasePage):
@@ -10,6 +11,15 @@ class DashboardPage(BasePage):
 
     def navigate(self):
         self.open_url("dashboard.html")
+
+    def wait_for_dashboard_load(self):
+        def check_loaded(driver):
+            elements = driver.find_elements(*self.STAT_CARD_VALUES)
+            if len(elements) > 0:
+                text = elements[0].text
+                return text != "1,245" and text != ""
+            return False
+        WebDriverWait(self.driver, 10).until(check_loaded)
 
     def click_compose(self):
         self.click(self.COMPOSE_BUTTON)

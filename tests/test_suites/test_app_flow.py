@@ -45,6 +45,7 @@ def test_dashboard_stats(driver, base_url):
     print("Running Test: Dashboard Stats Check")
     dashboard_page = DashboardPage(driver, base_url)
     dashboard_page.navigate()
+    dashboard_page.wait_for_dashboard_load()
     stats = dashboard_page.get_stats_values()
     print(f"Stats found: {stats}")
     assert len(stats) >= 3, f"Expected at least 3 stats card values, found: {len(stats)}"
@@ -53,7 +54,7 @@ def test_compose_email_navigation(driver, base_url):
     print("Running Test: Compose Email Navigation")
     dashboard_page = DashboardPage(driver, base_url)
     dashboard_page.navigate()
-    time.sleep(2.5) # Wait for page load and session validation
+    dashboard_page.wait_for_dashboard_load()
     dashboard_page.click_compose()
     time.sleep(2)
     current_url = driver.current_url
@@ -72,7 +73,7 @@ def test_logout_flow(driver, base_url):
     print("Running Test: Logout Flow")
     dashboard_page = DashboardPage(driver, base_url)
     dashboard_page.navigate()
-    time.sleep(2.5) # Wait for page load and session validation
+    dashboard_page.wait_for_dashboard_load()
     dashboard_page.logout()
     time.sleep(2)
     current_url = driver.current_url
