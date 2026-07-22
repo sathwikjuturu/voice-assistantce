@@ -1,3 +1,17 @@
-<!DOCTYPE html><html><head><meta http-equiv="refresh" content="0; url=splash.html"></head><body><script src="js/app.js"></script>
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="refresh" content="0; url=splash.html">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1f2833">
+</head>
+<body>
+    <script src="js/app.js"></script>
     <script src="js/voice-engine.js"></script>
-</body></html>
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js');
+        }
+    </script>
+</body>
+</html>
