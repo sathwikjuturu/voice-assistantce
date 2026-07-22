@@ -26,7 +26,7 @@ jobs:
       - name: Setup Java JDK
         uses: actions/setup-java@v3
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'zulu'
 
       - name: Setup Python
@@ -47,7 +47,13 @@ jobs:
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug > gradle_build_log.txt 2>&1 || true
+          cat gradle_build_log.txt
+          echo "### Gradle Build Log" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          tail -n 100 gradle_build_log.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          if grep -q -i "FAILED" gradle_build_log.txt; then exit 1; fi
 
       - name: Upload Android Debug APK
         uses: actions/upload-artifact@v4
