@@ -85,15 +85,12 @@ class AppClient {
   setSession(token, user) {
     localStorage.setItem(this.tokenKey, token);
     localStorage.setItem(this.userKey, JSON.stringify(user));
+    localStorage.setItem('ls_current_user', JSON.stringify(user));
   }
 
   getCurrentUser() {
-    if (this.isServerMode) {
-      const userStr = localStorage.getItem(this.userKey);
-      return userStr ? JSON.parse(userStr) : null;
-    } else {
-      return JSON.parse(localStorage.getItem('ls_current_user') || 'null');
-    }
+    const userStr = localStorage.getItem(this.userKey) || localStorage.getItem('ls_current_user');
+    return userStr ? JSON.parse(userStr) : null;
   }
 
   logout() {
