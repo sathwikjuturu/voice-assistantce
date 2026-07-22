@@ -37,9 +37,11 @@ def test_login_flow(driver, base_url):
     login_page = LoginPage(driver, base_url)
     login_page.navigate()
     login_page.login("john@example.com", "password123")
-    time.sleep(2)
-    current_url = driver.current_url
-    assert "dashboard.html" in current_url, f"Expected redirect to dashboard.html but got {current_url}"
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
+    WebDriverWait(driver, 10).until(
+        EC.url_contains("dashboard.html")
+    )
 
 def test_dashboard_stats(driver, base_url):
     print("Running Test: Dashboard Stats Check")
@@ -56,9 +58,11 @@ def test_compose_email_navigation(driver, base_url):
     dashboard_page.navigate()
     dashboard_page.wait_for_dashboard_load()
     dashboard_page.click_compose()
-    time.sleep(2)
-    current_url = driver.current_url
-    assert "compose_email.html" in current_url, f"Expected URL to be compose_email.html but got {current_url}"
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
+    WebDriverWait(driver, 10).until(
+        EC.url_contains("compose_email.html")
+    )
 
 def test_contacts_list(driver, base_url):
     print("Running Test: Contacts List Check")
@@ -75,6 +79,8 @@ def test_logout_flow(driver, base_url):
     dashboard_page.navigate()
     dashboard_page.wait_for_dashboard_load()
     dashboard_page.logout()
-    time.sleep(2)
-    current_url = driver.current_url
-    assert "login.html" in current_url, f"Expected redirect to login.html on logout, but got {current_url}"
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
+    WebDriverWait(driver, 10).until(
+        EC.url_contains("login.html")
+    )

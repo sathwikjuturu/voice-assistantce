@@ -125,7 +125,11 @@ def run_tests():
                 expected_url = f"{base_url.rstrip('/')}/dashboard.html"
                 if expected_url.rstrip('/') not in driver.current_url.rstrip('/'):
                     driver.get(expected_url)
-                    time.sleep(0.1)
+                    from selenium.webdriver.support.ui import WebDriverWait
+                    from selenium.webdriver.support import expected_conditions as EC
+                    WebDriverWait(driver, 10).until(
+                        EC.presence_of_element_located((By.CSS_SELECTOR, ".sidebar-logo"))
+                    )
                 
                 el = driver.find_element(By.CSS_SELECTOR, s)
                 if ct == "presence":
