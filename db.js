@@ -1,6 +1,10 @@
 import fs from 'fs';
 import path from 'path';
 import { createClient } from '@supabase/supabase-js';
+import dotenv from 'dotenv';
+
+// Load environment variables immediately
+dotenv.config();
 
 const DB_FILE = path.join(process.cwd(), 'db.json');
 
@@ -13,11 +17,14 @@ function getSupabaseClient() {
   const SUPABASE_KEY = process.env.SUPABASE_KEY;
 
   if (SUPABASE_URL && SUPABASE_KEY) {
+    console.log('[Supabase] Initializing client for target URL:', SUPABASE_URL);
     supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
       auth: {
         persistSession: false
       }
     });
+  } else {
+    console.warn('[Supabase] SUPABASE_URL or SUPABASE_KEY environment variables are missing!');
   }
   return supabase;
 }
