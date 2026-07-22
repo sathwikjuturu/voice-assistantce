@@ -2,9 +2,9 @@ from selenium.webdriver.common.by import By
 from .base_page import BasePage
 
 class DashboardPage(BasePage):
-    COMPOSE_BUTTON = (By.XPATH, "//button[contains(., 'Compose')]")
-    LOGOUT_LINK = (By.XPATH, "//a[contains(@href, 'login.html')]")
-    CONTACTS_LINK = (By.XPATH, "//a[contains(@href, 'contacts.html')]")
+    COMPOSE_BUTTON = (By.CSS_SELECTOR, "button[onclick*='compose_email.html']")
+    LOGOUT_LINK = (By.CSS_SELECTOR, "a[href='login.html']")
+    CONTACTS_LINK = (By.CSS_SELECTOR, "a[href='contacts.html']")
     STAT_CARD_VALUES = (By.CSS_SELECTOR, ".stat-card h3")
     EMAIL_ITEMS = (By.CSS_SELECTOR, ".email-list .email-item")
 

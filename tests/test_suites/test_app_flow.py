@@ -53,8 +53,9 @@ def test_compose_email_navigation(driver, base_url):
     print("Running Test: Compose Email Navigation")
     dashboard_page = DashboardPage(driver, base_url)
     dashboard_page.navigate()
+    time.sleep(2.5) # Wait for page load and session validation
     dashboard_page.click_compose()
-    time.sleep(1)
+    time.sleep(2)
     current_url = driver.current_url
     assert "compose_email.html" in current_url, f"Expected URL to be compose_email.html but got {current_url}"
 
@@ -71,6 +72,7 @@ def test_logout_flow(driver, base_url):
     print("Running Test: Logout Flow")
     dashboard_page = DashboardPage(driver, base_url)
     dashboard_page.navigate()
+    time.sleep(2.5) # Wait for page load and session validation
     dashboard_page.logout()
     time.sleep(2)
     current_url = driver.current_url
