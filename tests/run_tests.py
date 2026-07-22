@@ -123,6 +123,22 @@ def run_tests():
                 logger.info(f"Failure screenshot saved to: {screenshot_path}")
             except Exception as ss_ex:
                 logger.error(f"Failed to capture screenshot: {ss_ex}")
+            
+            # Print browser console logs
+            try:
+                logs = driver.get_log('browser')
+                logger.error(f"Browser console logs for {name}:")
+                for entry in logs:
+                    logger.error(f"  [{entry['level']}] {entry['message']}")
+            except Exception as log_ex:
+                logger.error(f"Failed to fetch browser logs: {log_ex}")
+            
+            # Print page source and current URL
+            try:
+                logger.error(f"Failed URL: {driver.current_url}")
+                logger.error(f"Page source snippet (first 1000 chars): {driver.page_source[:1000]}")
+            except Exception as ps_ex:
+                logger.error(f"Failed to fetch page source/url: {ps_ex}")
                 
         duration = round(time.time() - start_time, 2)
         results.append({
@@ -143,6 +159,21 @@ def run_tests():
     generate_excel_report(results, start_run_time, end_run_time, total_duration, passed_count, failed_count)
     generate_html_report(results, base_url, start_run_time, total_duration, passed_count, failed_count)
     generate_summary_markdown(results, base_url, passed_count, failed_count)
+    
+    # Generate massive test matrices (300+ and 1800 test cases)
+    try:
+        import generate_massive_matrix
+        generate_massive_matrix.build_massive_matrix()
+        logger.info("Generated massive matrix (300+ cases) successfully.")
+    except Exception as e:
+        logger.error(f"Failed to generate massive matrix: {e}")
+
+    try:
+        import generate_final_massive_matrix
+        generate_final_massive_matrix.build_final_matrix()
+        logger.info("Generated final massive matrix (1800 cases) successfully.")
+    except Exception as e:
+        logger.error(f"Failed to generate final massive matrix: {e}")
     
     logger.info("Reports generated successfully under 'Test Results/' folder.")
     

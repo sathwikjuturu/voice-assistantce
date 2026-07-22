@@ -5,12 +5,32 @@ from pages.compose_page import ComposePage
 from pages.contacts_page import ContactsPage
 
 def test_page_load_and_redirect(driver, base_url):
-    print("Running Test: Page Load and Redirect")
+    print("Running Test: Page Load, Splash, Onboarding and Redirect")
     login_page = LoginPage(driver, base_url)
     login_page.open_url("")  # Root path
-    time.sleep(2)
+    
+    # 1. Wait for splash screen to redirect to onboarding1.html (2.5s redirect in splash.html)
+    time.sleep(3.5)
+    current_url = driver.current_url
+    assert "onboarding1.html" in current_url, f"Expected redirect to onboarding1.html but got {current_url}"
+    
+    # 2. Click Continue button to go to onboarding2.html
+    from selenium.webdriver.common.by import By
+    continue_btn = driver.find_element(By.CSS_SELECTOR, "button.btn")
+    continue_btn.click()
+    time.sleep(1.5)
+    
+    current_url = driver.current_url
+    assert "onboarding2.html" in current_url, f"Expected redirect to onboarding2.html but got {current_url}"
+    
+    # 3. Click Skip for now to go to login.html
+    skip_link = driver.find_element(By.LINK_TEXT, "Skip for now")
+    skip_link.click()
+    time.sleep(1.5)
+    
     current_url = driver.current_url
     assert "login.html" in current_url, f"Expected redirect to login.html but got {current_url}"
+
 
 def test_login_flow(driver, base_url):
     print("Running Test: Login Flow")

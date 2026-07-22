@@ -15,6 +15,16 @@
             animation: fadeIn 0.3s ease-in-out forwards;
         }
     </style>
+    <script>
+        // Make splash redirect automatically
+        window.onload = function() {
+            if (window.location.pathname.endsWith('splash.html') || window.location.pathname.endsWith('/')) {
+                setTimeout(function() {
+                    window.location.href = 'onboarding1.html';
+                }, 2500);
+            }
+        };
+    </script>
 </head>
 <body>
 <div id="app">
@@ -34,7 +44,7 @@
             <div style="text-align: right; margin-bottom: 1.5rem;">
                 <a href="forgot_password.html" style="font-size: 0.9rem;">Forgot Password?</a>
             </div>
-            <button class="btn">Login</button>
+            <button class="btn" onclick="window.location.href='dashboard.html'">Login</button>
             <p style="margin-top: 1.5rem; margin-bottom: 0;">Don't have an account? <a href="signup.html">Sign Up</a></p>
         </div>
     </div>

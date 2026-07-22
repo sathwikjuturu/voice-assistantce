@@ -255,19 +255,15 @@ class AppClient {
     }
     if (endpoint.startsWith('/auth/login')) {
       if (!body) return {}; // server test ping
-      const user = db.users.find(u => u.email.toLowerCase() === body.email.toLowerCase());
+      const user = db.users.find(u => u.email === body.email && u.password === body.password);
       if (!user) throw new Error('Invalid email or password');
-      const isPasswordMatch = user.password === body.password || 
-                             (user.email.toLowerCase() === 'john@example.com' && body.password === 'password') || 
-                             (user.password.startsWith('$2') && body.password === 'password');
-      if (!isPasswordMatch) throw new Error('Invalid email or password');
       localStorage.setItem('ls_current_user', JSON.stringify(user));
       return { token: 'ls-mock-token', user };
     }
     if (endpoint.startsWith('/auth/forgot-password')) {
       const user = db.users.find(u => u.email === body.email);
       if (!user) throw new Error('Email not found');
-      const otp = Math.floor(1000 + Math.random() * 9000).toString();
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
       localStorage.setItem('ls_otp', otp);
       localStorage.setItem('ls_otp_email', body.email);
       return { devOtp: otp };
@@ -483,17 +479,15 @@ function checkAuth() {
   const token = client.getToken();
   const user = client.getCurrentUser();
 
-  if (token && user) {
-    // Logged in — redirect away from auth pages to dashboard
-    if (authPages.includes(currentPath)) {
+  if (authPages.includes(currentPath)) {
+    // If logged in and hitting an auth page (except splash), redirect to dashboard
+    if (token && user && currentPath !== 'splash.html' && currentPath !== 'index.html') {
       window.location.href = 'dashboard.html';
-      return;
     }
   } else {
-    // Not logged in — redirect to login from protected pages
-    if (!authPages.includes(currentPath)) {
+    // Protected pages: redirect to login if no credentials
+    if (!token || !user) {
       window.location.href = 'login.html';
-      return;
     }
   }
 }

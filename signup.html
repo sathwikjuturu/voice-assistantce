@@ -15,6 +15,16 @@
             animation: fadeIn 0.3s ease-in-out forwards;
         }
     </style>
+    <script>
+        // Make splash redirect automatically
+        window.onload = function() {
+            if (window.location.pathname.endsWith('splash.html') || window.location.pathname.endsWith('/')) {
+                setTimeout(function() {
+                    window.location.href = 'onboarding1.html';
+                }, 2500);
+            }
+        };
+    </script>
 </head>
 <body>
 <div id="app">

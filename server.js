@@ -38,9 +38,9 @@ app.use('/api/calendar', calendarRouter);
 // Serve frontend static files
 app.use(express.static(path.join(process.cwd())));
 
-// Handle other requests by serving login.html
+// Handle other requests by serving splash.html
 app.get('*', (req, res) => {
-  res.sendFile(path.join(process.cwd(), 'login.html'));
+  res.sendFile(path.join(process.cwd(), 'splash.html'));
 });
 
 // Start Server

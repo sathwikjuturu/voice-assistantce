@@ -18,6 +18,16 @@ html_head = """<!DOCTYPE html>
             animation: fadeIn 0.3s ease-in-out forwards;
         }
     </style>
+    <script>
+        // Make splash redirect automatically
+        window.onload = function() {
+            if (window.location.pathname.endsWith('splash.html') || window.location.pathname.endsWith('/')) {
+                setTimeout(function() {
+                    window.location.href = 'onboarding1.html';
+                }, 2500);
+            }
+        };
+    </script>
 </head>
 <body>
 """
@@ -118,11 +128,7 @@ for key, content in matches:
     content = re.sub(r'href="#([a-zA-Z0-9_]+)"', r'href="\g<1>.html"', content)
     
     if key in auth_screens:
-        if key == 'splash':
-            splash_head = html_head.replace('</head>', '    <script>\n        window.onload = function() {\n            setTimeout(function() {\n                window.location.href = "login.html";\n            }, 2500);\n        };\n    </script>\n</head>')
-            final_html = splash_head + '<div id="app">\n' + content + '\n</div>'
-        else:
-            final_html = html_head + '<div id="app">\n' + content + '\n</div>'
+        final_html = html_head + '<div id="app">\n' + content + '\n</div>'
         if key == 'voice_overlay':
             final_html += mic_btn
         final_html += html_foot
@@ -133,8 +139,8 @@ for key, content in matches:
     with open(f"{key}.html", "w", encoding="utf-8") as f:
         f.write(final_html)
 
-# Create an index.html that redirects to login.html and clears session keys
+# Create an index.html that redirects to splash.html
 with open("index.html", "w", encoding="utf-8") as f:
-    f.write('<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>VoiceMail AI - Smart Assistant</title><script>localStorage.removeItem("voicemail_jwt"); localStorage.removeItem("voicemail_user"); localStorage.removeItem("ls_current_user"); window.location.href = "login.html";</script></head><body></body></html>')
+    f.write('<!DOCTYPE html><html><head><meta http-equiv="refresh" content="0; url=splash.html"></head><body></body></html>')
 
 print("Generated HTML files successfully.")

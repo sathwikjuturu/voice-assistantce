@@ -1,5 +1,5 @@
 import express from 'express';
-import { supabase } from '../supabaseClient.js';
+import { readDb, writeDb } from '../db.js';
 import authMiddleware from '../middleware/auth.js';
 
 const router = express.Router();
@@ -8,94 +8,91 @@ const router = express.Router();
 router.use(authMiddleware);
 
 // Get emails based on folder, category, starred, or search parameters
-router.get('/', async (req, res) => {
+router.get('/', (req, res) => {
   try {
     const { folder, category, starred, search } = req.query;
+    const db = readDb();
     const userEmail = req.user.email;
 
-    let query = supabase.from('emails').select('*');
+    let filtered = db.emails.filter(email => {
+      // Drafts and Sent are owned by this user
+      if (email.folder === 'drafts' || email.folder === 'sent') {
+        return email.senderEmail === userEmail;
+      }
+      // Inbox emails are received by this user
+      return email.recipientEmail === userEmail;
+    });
 
-    // Filter by Folder ownership
-    if (folder === 'drafts' || folder === 'sent') {
-      query = query.eq('senderEmail', userEmail).eq('folder', folder);
-    } else if (folder) {
-      query = query.eq('recipientEmail', userEmail).eq('folder', folder);
+    // Filter by Folder
+    if (folder) {
+      filtered = filtered.filter(email => email.folder === folder);
     } else {
-      // Default: Inbox (received by the user)
-      query = query.eq('recipientEmail', userEmail);
+      // By default, if folder is inbox, exclude trash and spam from standard list
       if (!category || (category !== 'trash' && category !== 'spam')) {
-        query = query.eq('folder', 'inbox');
+        filtered = filtered.filter(email => email.folder === 'inbox' && email.category !== 'trash' && email.category !== 'spam');
       }
     }
 
     // Filter by Category
     if (category) {
-      query = query.eq('category', category);
+      filtered = filtered.filter(email => email.category === category);
     }
 
     // Filter by Starred
     if (starred === 'true') {
-      query = query.eq('isStarred', true);
+      filtered = filtered.filter(email => email.isStarred === true);
     }
 
     // Search query
     if (search) {
-      const q = `%${search}%`;
-      query = query.or(`subject.ilike.${q},body.ilike.${q},senderName.ilike.${q},senderEmail.ilike.${q}`);
+      const q = search.toLowerCase();
+      filtered = filtered.filter(email => 
+        (email.subject && email.subject.toLowerCase().includes(q)) ||
+        (email.body && email.body.toLowerCase().includes(q)) ||
+        (email.senderName && email.senderName.toLowerCase().includes(q)) ||
+        (email.senderEmail && email.senderEmail.toLowerCase().includes(q))
+      );
     }
 
     // Sort by date descending
-    query = query.order('date', { ascending: false });
+    filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-    const { data: emails, error } = await query;
-    if (error) throw error;
-
-    res.json(emails || []);
+    res.json(filtered);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
 // Get individual email by ID
-router.get('/:id', async (req, res) => {
+router.get('/:id', (req, res) => {
   try {
     const { id } = req.params;
+    const db = readDb();
+    const emailIndex = db.emails.findIndex(e => e.id === id);
 
-    // Fetch email
-    const { data: email, error: fetchError } = await supabase
-      .from('emails')
-      .select('*')
-      .eq('id', id)
-      .maybeSingle();
-
-    if (fetchError) throw fetchError;
-    if (!email) {
+    if (emailIndex === -1) {
       return res.status(404).json({ error: 'Email not found' });
     }
 
     // Mark as read
-    const { error: updateError } = await supabase
-      .from('emails')
-      .update({ isRead: true })
-      .eq('id', id);
+    db.emails[emailIndex].isRead = true;
+    writeDb(db);
 
-    if (updateError) throw updateError;
-
-    email.isRead = true; // return updated state
-    res.json(email);
+    res.json(db.emails[emailIndex]);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
 // Send new email
-router.post('/send', async (req, res) => {
+router.post('/send', (req, res) => {
   try {
     const { to, subject, body } = req.body;
     if (!to) {
       return res.status(400).json({ error: 'Recipient email (to) is required' });
     }
 
+    const db = readDb();
     const newEmail = {
       id: "mail_" + Date.now(),
       senderName: req.user.name || req.user.email.split('@')[0],
@@ -110,11 +107,8 @@ router.post('/send', async (req, res) => {
       date: new Date().toISOString()
     };
 
-    const { error } = await supabase
-      .from('emails')
-      .insert(newEmail);
-
-    if (error) throw error;
+    db.emails.push(newEmail);
+    writeDb(db);
 
     res.status(211).json({ message: 'Email sent successfully', email: newEmail });
   } catch (error) {
@@ -123,51 +117,29 @@ router.post('/send', async (req, res) => {
 });
 
 // Save or Update Draft
-router.post('/draft', async (req, res) => {
+router.post('/draft', (req, res) => {
   try {
     const { id, to, subject, body } = req.body;
-    const userEmail = req.user.email;
+    const db = readDb();
 
     if (id) {
-      // Check if draft exists and is owned by this user
-      const { data: existingDraft, error: checkError } = await supabase
-        .from('emails')
-        .select('id')
-        .eq('id', id)
-        .eq('folder', 'drafts')
-        .eq('senderEmail', userEmail)
-        .maybeSingle();
-
-      if (checkError) throw checkError;
-
-      if (existingDraft) {
-        // Update existing draft
-        const updatedFields = {
-          recipientEmail: to || '',
-          subject: subject || '',
-          body: body || '',
-          date: new Date().toISOString()
-        };
-
-        const { error: updateError } = await supabase
-          .from('emails')
-          .update(updatedFields)
-          .eq('id', id);
-
-        if (updateError) throw updateError;
-
-        return res.json({
-          message: 'Draft updated successfully',
-          email: { id, senderName: req.user.name || userEmail.split('@')[0], senderEmail: userEmail, ...updatedFields, category: 'primary', folder: 'drafts', isRead: true, isStarred: false }
-        });
+      // Update existing draft
+      const draftIndex = db.emails.findIndex(e => e.id === id && e.folder === 'drafts');
+      if (draftIndex !== -1) {
+        db.emails[draftIndex].recipientEmail = to || '';
+        db.emails[draftIndex].subject = subject || '';
+        db.emails[draftIndex].body = body || '';
+        db.emails[draftIndex].date = new Date().toISOString();
+        writeDb(db);
+        return res.json({ message: 'Draft updated successfully', email: db.emails[draftIndex] });
       }
     }
 
     // Create new draft
     const newDraft = {
       id: "mail_" + Date.now(),
-      senderName: req.user.name || userEmail.split('@')[0],
-      senderEmail: userEmail,
+      senderName: req.user.name || req.user.email.split('@')[0],
+      senderEmail: req.user.email,
       recipientEmail: to || '',
       subject: subject || '',
       body: body || '',
@@ -178,11 +150,8 @@ router.post('/draft', async (req, res) => {
       date: new Date().toISOString()
     };
 
-    const { error: insertError } = await supabase
-      .from('emails')
-      .insert(newDraft);
-
-    if (insertError) throw insertError;
+    db.emails.push(newDraft);
+    writeDb(db);
 
     res.status(211).json({ message: 'Draft saved successfully', email: newDraft });
   } catch (error) {
@@ -191,74 +160,57 @@ router.post('/draft', async (req, res) => {
 });
 
 // Perform operations (delete, spam, star, mark unread, restore)
-router.post('/action', async (req, res) => {
+router.post('/action', (req, res) => {
   try {
     const { id, action } = req.body;
     if (!id || !action) {
       return res.status(400).json({ error: 'Email ID and action are required' });
     }
 
-    // Fetch email
-    const { data: email, error: fetchError } = await supabase
-      .from('emails')
-      .select('*')
-      .eq('id', id)
-      .maybeSingle();
+    const db = readDb();
+    const emailIndex = db.emails.findIndex(e => e.id === id);
 
-    if (fetchError) throw fetchError;
-    if (!email) {
+    if (emailIndex === -1) {
       return res.status(404).json({ error: 'Email not found' });
     }
 
-    let updatedFields = {};
-    let deletePermanently = false;
+    const email = db.emails[emailIndex];
 
     switch (action) {
       case 'delete':
+        // If already in trash, delete permanently
         if (email.category === 'trash') {
-          deletePermanently = true;
+          db.emails.splice(emailIndex, 1);
+          writeDb(db);
+          return res.json({ message: 'Email deleted permanently' });
         } else {
-          updatedFields = { category: 'trash', folder: 'trash' };
+          email.category = 'trash';
+          email.folder = 'trash';
         }
         break;
       case 'spam':
-        updatedFields = { category: 'spam', folder: 'spam' };
+        email.category = 'spam';
+        email.folder = 'spam';
         break;
       case 'star':
-        updatedFields = { isStarred: !email.isStarred };
+        email.isStarred = !email.isStarred;
         break;
       case 'unread':
-        updatedFields = { isRead: false };
+        email.isRead = false;
         break;
       case 'read':
-        updatedFields = { isRead: true };
+        email.isRead = true;
         break;
       case 'restore':
-        updatedFields = { category: 'primary', folder: 'inbox' };
+        email.category = 'primary';
+        email.folder = 'inbox';
         break;
       default:
         return res.status(400).json({ error: `Invalid action: ${action}` });
     }
 
-    if (deletePermanently) {
-      const { error: deleteError } = await supabase
-        .from('emails')
-        .delete()
-        .eq('id', id);
-
-      if (deleteError) throw deleteError;
-      return res.json({ message: 'Email deleted permanently' });
-    } else {
-      const { error: updateError } = await supabase
-        .from('emails')
-        .update(updatedFields)
-        .eq('id', id);
-
-      if (updateError) throw updateError;
-      
-      const updatedEmail = { ...email, ...updatedFields };
-      res.json({ message: `Action '${action}' completed successfully`, email: updatedEmail });
-    }
+    writeDb(db);
+    res.json({ message: `Action '${action}' completed successfully`, email });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
