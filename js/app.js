@@ -458,31 +458,30 @@ class AppClient {
 
 const client = new AppClient();
 
-// --- Auth Guard Protection ---
 function checkAuth() {
-  const currentPath = window.location.pathname.split('/').pop() || 'index.html';
-  const authPages = [
-    'index.html',
-    'splash.html',
-    'onboarding1.html',
-    'onboarding2.html',
-    'login.html',
-    'signup.html',
-    'forgot_password.html',
-    'otp.html',
-    'reset_success.html'
-  ];
+  const path = window.location.pathname.toLowerCase();
+  
+  // Define if the current page is an authentication or onboarding page (guest-only page)
+  const isAuthPage = path.includes('login') || 
+                     path.includes('signup') || 
+                     path.includes('forgot') || 
+                     path.includes('otp') || 
+                     path.includes('reset') || 
+                     path.includes('splash') || 
+                     path.includes('onboarding') || 
+                     path.endsWith('/') || 
+                     path.endsWith('index.html');
 
   const token = client.getToken();
   const user = client.getCurrentUser();
 
-  if (authPages.includes(currentPath)) {
-    // If logged in and hitting an auth page (except splash), redirect to dashboard
-    if (token && user && currentPath !== 'splash.html' && currentPath !== 'index.html') {
+  if (isAuthPage) {
+    // If logged in and hitting an auth page (except splash or root index), redirect to dashboard
+    if (token && user && !path.includes('splash') && !path.endsWith('index.html') && !path.endsWith('/')) {
       window.location.href = 'dashboard.html';
     }
   } else {
-    // Protected pages: redirect to login if no credentials
+    // Protected pages: redirect to login if no credentials are present
     if (!token || !user) {
       window.location.href = 'login.html';
     }
@@ -562,7 +561,6 @@ function initVoiceRecognition(onResultCallback, onEndCallback = null) {
 // --- Dynamic Page Controller Bindings ---
 document.addEventListener('DOMContentLoaded', () => {
   checkAuth();
-  const currentPath = window.location.pathname.split('/').pop() || 'index.html';
 
   // Bind logout links dynamically
   const logoutBtn = document.querySelector('a[href="login.html"]');
@@ -588,59 +586,69 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // PAGE ROUTINES
-  if (currentPath === 'login.html') {
+  const path = window.location.pathname.toLowerCase();
+  
+  if (path.includes('login')) {
     const emailInput = document.querySelector('input[type="email"]');
     const passInput = document.querySelector('input[type="password"]');
     const submitBtn = document.querySelector('.btn');
 
-    submitBtn.removeAttribute('onclick');
-    submitBtn.addEventListener('click', async (e) => {
-      e.preventDefault();
-      const email = emailInput.value.trim();
-      const password = passInput.value;
+    if (submitBtn) {
+      submitBtn.removeAttribute('onclick');
+      submitBtn.onclick = null;
+      submitBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        const email = emailInput.value.trim();
+        const password = passInput.value;
 
-      if (!email || !password) return showToast('Please enter both email and password', 'error');
-      try {
-        const res = await client.request('/auth/login', 'POST', { email, password });
-        client.setSession(res.token, res.user);
-        showToast('Logged in successfully!', 'success');
-        setTimeout(() => window.location.href = 'dashboard.html', 1000);
-      } catch (err) {
-        showToast(err.message, 'error');
-      }
-    });
+        if (!email || !password) return showToast('Please enter both email and password', 'error');
+        try {
+          const res = await client.request('/auth/login', 'POST', { email, password });
+          client.setSession(res.token, res.user);
+          showToast('Logged in successfully!', 'success');
+          setTimeout(() => window.location.href = 'dashboard.html', 1000);
+        } catch (err) {
+          showToast(err.message, 'error');
+        }
+      });
+    }
   }
 
-  else if (currentPath === 'signup.html') {
+  else if (path.includes('signup')) {
     const nameInput = document.querySelector('input[placeholder="Full Name"]');
     const emailInput = document.querySelector('input[type="email"]');
     const passInput = document.querySelector('input[type="password"]');
     const submitBtn = document.querySelector('.btn');
 
-    submitBtn.removeAttribute('onclick');
-    submitBtn.addEventListener('click', async (e) => {
-      e.preventDefault();
-      const name = nameInput.value.trim();
-      const email = emailInput.value.trim();
-      const password = passInput.value;
+    if (submitBtn) {
+      submitBtn.removeAttribute('onclick');
+      submitBtn.onclick = null;
+      submitBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        const name = nameInput.value.trim();
+        const email = emailInput.value.trim();
+        const password = passInput.value;
 
-      if (!name || !email || !password) return showToast('Please fill in all fields', 'error');
-      try {
-        const res = await client.request('/auth/signup', 'POST', { name, email, password });
-        client.setSession(res.token, res.user);
-        showToast('Registered successfully!', 'success');
-        setTimeout(() => window.location.href = 'dashboard.html', 1000);
-      } catch (err) {
-        showToast(err.message, 'error');
-      }
-    });
+        if (!name || !email || !password) return showToast('Please fill in all fields', 'error');
+        try {
+          const res = await client.request('/auth/signup', 'POST', { name, email, password });
+          client.setSession(res.token, res.user);
+          showToast('Registered successfully!', 'success');
+          setTimeout(() => window.location.href = 'dashboard.html', 1000);
+        } catch (err) {
+          showToast(err.message, 'error');
+        }
+      });
+    }
   }
 
-  else if (currentPath === 'forgot_password.html') {
+  else if (path.includes('forgot_password') || path.includes('forgot-password')) {
     const emailInput = document.querySelector('input[type="email"]');
     const submitBtn = document.querySelector('.btn');
 
-    submitBtn.removeAttribute('onclick');
+    if (submitBtn) {
+      submitBtn.removeAttribute('onclick');
+      submitBtn.onclick = null;
     submitBtn.addEventListener('click', async (e) => {
       e.preventDefault();
       const email = emailInput.value.trim();
@@ -659,7 +667,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  else if (currentPath === 'otp.html') {
+  else if (path.includes('otp')) {
     const inputs = document.querySelectorAll('.auth-box div[style*="display: flex"] input');
     const submitBtn = document.querySelector('.btn');
     const urlParams = new URLSearchParams(window.location.search);
@@ -679,24 +687,27 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
 
-    submitBtn.removeAttribute('onclick');
-    submitBtn.addEventListener('click', async (e) => {
-      e.preventDefault();
-      const otp = Array.from(inputs).map(i => i.value.trim()).join('');
-      if (otp.length < 4) return showToast('Please enter the full OTP code', 'error');
+    if (submitBtn) {
+      submitBtn.removeAttribute('onclick');
+      submitBtn.onclick = null;
+      submitBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        const otp = Array.from(inputs).map(i => i.value.trim()).join('');
+        if (otp.length < 4) return showToast('Please enter the full OTP code', 'error');
 
-      try {
-        await client.request('/auth/verify-otp', 'POST', { email, otp });
-        showToast('OTP verified!', 'success');
-        // Let's forward OTP in parameters for resetting
-        setTimeout(() => window.location.href = `reset_success.html?email=${encodeURIComponent(email)}&otp=${encodeURIComponent(otp)}`, 1000);
-      } catch (err) {
-        showToast(err.message, 'error');
-      }
-    });
+        try {
+          await client.request('/auth/verify-otp', 'POST', { email, otp });
+          showToast('OTP verified!', 'success');
+          // Let's forward OTP in parameters for resetting
+          setTimeout(() => window.location.href = `reset_success.html?email=${encodeURIComponent(email)}&otp=${encodeURIComponent(otp)}`, 1000);
+        } catch (err) {
+          showToast(err.message, 'error');
+        }
+      });
+    }
   }
 
-  else if (currentPath === 'reset_success.html') {
+  else if (path.includes('reset_success')) {
     // Let's implement reset password execution here if password fields exist, or simple message
     const urlParams = new URLSearchParams(window.location.search);
     const email = urlParams.get('email');
@@ -729,31 +740,31 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  else if (currentPath === 'dashboard.html') {
+  else if (path.includes('dashboard')) {
     loadDashboardStats();
   }
 
-  else if (currentPath.startsWith('inbox') || currentPath === 'sent_items.html' || currentPath === 'drafts.html' || currentPath === 'spam.html' || currentPath === 'trash.html') {
+  else if (path.includes('inbox') || path.includes('sent_items') || path.includes('drafts') || path.includes('spam') || path.includes('trash') || path.includes('folder=')) {
     loadEmailsList();
   }
 
-  else if (currentPath === 'compose_email.html') {
+  else if (path.includes('compose_email') || path.includes('compose')) {
     bindComposePage();
   }
 
-  else if (currentPath === 'read_email.html') {
+  else if (path.includes('read_email') || path.includes('read-email')) {
     loadReadEmailPage();
   }
 
-  else if (currentPath === 'contacts.html') {
+  else if (path.includes('contacts')) {
     loadContactsPage();
   }
 
-  else if (currentPath === 'calendar.html') {
+  else if (path.includes('calendar')) {
     loadCalendarPage();
   }
 
-  else if (currentPath === 'voice_overlay.html') {
+  else if (path.includes('voice_overlay') || path.includes('voice-overlay')) {
     runVoiceOverlayListeningLoop();
   }
 });
