@@ -171,7 +171,7 @@ def run_tests():
     try:
         import generate_final_massive_matrix
         generate_final_massive_matrix.build_final_matrix()
-        logger.info("Generated final massive matrix (1800 cases) successfully.")
+        logger.info("Generated final massive matrix (2100 cases) successfully.")
     except Exception as e:
         logger.error(f"Failed to generate final massive matrix: {e}")
     
