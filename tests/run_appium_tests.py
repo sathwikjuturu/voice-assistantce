@@ -517,7 +517,7 @@ def generate_summary_markdown(results, base_url, passed, failed):
 
 - **Build Number**: {build_num}
 - **Execution Date**: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
-- **Deployment URL**: [{base_url}]({base_url})
+- **Test Server URL**: `{base_url}` (Locally hosted inside GitHub Actions Runner)
 - **Report URL**: [{report_url}]({report_url})
 
 ## Metrics
