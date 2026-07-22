@@ -36,11 +36,25 @@ INVALID_PASS   = "badpassword"
 def tc01_root_redirect_to_login(driver, base_url):
     page = LoginPage(driver, base_url)
     page.open_url("")
-    page.sleep(2)
+    # 1. Wait for splash screen to redirect to onboarding1.html
+    page.sleep(3.5)
     url = page.get_current_url()
-    assert "login" in url.lower(), (
-        f"TC-01 FAILED: Root URL should redirect to login page, got: {url}"
-    )
+    assert "onboarding1.html" in url.lower(), f"TC-01 FAILED: Expected onboarding1.html, got: {url}"
+    
+    # 2. Click Continue button to go to onboarding2.html
+    from selenium.webdriver.common.by import By
+    continue_btn = driver.find_element(By.CSS_SELECTOR, "button.btn")
+    driver.execute_script("arguments[0].click();", continue_btn)
+    page.sleep(1.5)
+    url = page.get_current_url()
+    assert "onboarding2.html" in url.lower(), f"TC-01 FAILED: Expected onboarding2.html, got: {url}"
+    
+    # 3. Click Skip for now to go to login.html
+    skip_link = driver.find_element(By.LINK_TEXT, "Skip for now")
+    driver.execute_script("arguments[0].click();", skip_link)
+    page.sleep(1.5)
+    url = page.get_current_url()
+    assert "login.html" in url.lower(), f"TC-01 FAILED: Expected login.html, got: {url}"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
