@@ -41,7 +41,10 @@ jobs:
         run: chmod +x android/gradlew
 
       - name: Sync Capacitor Web Assets
-        run: npm run cap-sync
+        run: |
+          npm run cap-sync > sync_log.txt 2>&1 || true
+          cat sync_log.txt
+          if grep -q "[error]" sync_log.txt; then exit 1; fi
 
       - name: Build Android Debug APK
         run: |
