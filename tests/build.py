@@ -10,10 +10,11 @@ def main():
 
     # Copy files
     for item in os.listdir('.'):
-        if item.endswith('.html'):
-            shutil.copy(item, dist_dir)
-            print(f"Copied: {item}")
-        elif item in ['css', 'js', 'PDFs'] and os.path.isdir(item):
+        if item.endswith('.html') or item in ['manifest.json', 'sw.js']:
+            if os.path.exists(item):
+                shutil.copy(item, dist_dir)
+                print(f"Copied: {item}")
+        elif item in ['css', 'js', 'PDFs', 'images'] and os.path.isdir(item):
             shutil.copytree(item, os.path.join(dist_dir, item))
             print(f"Copied directory: {item}")
 

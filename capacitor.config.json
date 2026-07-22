@@ -1,0 +1,6 @@
+{
+  "appId": "com.voicemail.ai",
+  "appName": "VoiceMail AI Assistant",
+  "webDir": "dist",
+  "bundledWebRuntime": false
+}
