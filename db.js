@@ -4,17 +4,22 @@ import { createClient } from '@supabase/supabase-js';
 
 const DB_FILE = path.join(process.cwd(), 'db.json');
 
-// Initialize Supabase Client
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_KEY;
-
+// Supabase Client Getter (loads dynamically after dotenv.config() is executed)
 let supabase = null;
-if (SUPABASE_URL && SUPABASE_KEY) {
-  supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
-    auth: {
-      persistSession: false
-    }
-  });
+function getSupabaseClient() {
+  if (supabase) return supabase;
+  
+  const SUPABASE_URL = process.env.SUPABASE_URL;
+  const SUPABASE_KEY = process.env.SUPABASE_KEY;
+
+  if (SUPABASE_URL && SUPABASE_KEY) {
+    supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+      auth: {
+        persistSession: false
+      }
+    });
+  }
+  return supabase;
 }
 
 // Memory Cache
@@ -123,16 +128,17 @@ const seedData = {
 export async function initDb() {
   if (dbCache) return;
 
-  if (supabase) {
+  const client = getSupabaseClient();
+  if (client) {
     try {
       console.log('[Supabase] Fetching database tables...');
       
       const [usersRes, emailsRes, contactsRes, calendarRes, settingsRes] = await Promise.all([
-        supabase.from('users').select('*'),
-        supabase.from('emails').select('*'),
-        supabase.from('contacts').select('*'),
-        supabase.from('calendar').select('*'),
-        supabase.from('settings').select('*').eq('id', 'global').maybeSingle()
+        client.from('users').select('*'),
+        client.from('emails').select('*'),
+        client.from('contacts').select('*'),
+        client.from('calendar').select('*'),
+        client.from('settings').select('*').eq('id', 'global').maybeSingle()
       ]);
 
       if (usersRes.error) throw usersRes.error;
@@ -250,7 +256,8 @@ export function writeDb(data) {
   fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf-8');
 
   // Sync to Supabase asynchronously
-  if (supabase) {
+  const client = getSupabaseClient();
+  if (client) {
     writeDbToSupabase(data).catch(err => {
       console.error('[Supabase Sync Error]:', err.message);
     });
@@ -258,6 +265,9 @@ export function writeDb(data) {
 }
 
 async function writeDbToSupabase(data) {
+  const client = getSupabaseClient();
+  if (!client) return;
+
   // 1. Sync Users
   const dbUsers = data.users.map(u => ({
     id: u.id,
@@ -317,30 +327,30 @@ async function writeDbToSupabase(data) {
 
   // Perform updates in parallel
   await Promise.all([
-    supabase.from('users').upsert(dbUsers),
-    supabase.from('emails').upsert(dbEmails),
-    supabase.from('contacts').upsert(dbContacts),
-    supabase.from('calendar').upsert(dbCalendar),
-    supabase.from('settings').upsert(dbSettings)
+    client.from('users').upsert(dbUsers),
+    client.from('emails').upsert(dbEmails),
+    client.from('contacts').upsert(dbContacts),
+    client.from('calendar').upsert(dbCalendar),
+    client.from('settings').upsert(dbSettings)
   ]);
 
   // Sync deletions for emails, contacts, and events
   const activeEmailIds = data.emails.map(m => m.id);
   if (activeEmailIds.length > 0) {
     const formatList = `(${activeEmailIds.map(id => `"${id}"`).join(',')})`;
-    await supabase.from('emails').delete().not('id', 'in', formatList);
+    await client.from('emails').delete().not('id', 'in', formatList);
   }
 
   const activeContactIds = data.contacts.map(c => c.id);
   if (activeContactIds.length > 0) {
     const formatList = `(${activeContactIds.map(id => `"${id}"`).join(',')})`;
-    await supabase.from('contacts').delete().not('id', 'in', formatList);
+    await client.from('contacts').delete().not('id', 'in', formatList);
   }
 
   const activeCalendarIds = data.calendar.map(e => e.id);
   if (activeCalendarIds.length > 0) {
     const formatList = `(${activeCalendarIds.map(id => `"${id}"`).join(',')})`;
-    await supabase.from('calendar').delete().not('id', 'in', formatList);
+    await client.from('calendar').delete().not('id', 'in', formatList);
   }
 
   console.log('[Supabase Sync] Relational database synchronized successfully.');
