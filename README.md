@@ -31,6 +31,16 @@ VoiceMail AI is a futuristic, voice-controlled, glassmorphic email assistant app
 
 ---
 
+## 📱 Android Application (APK)
+
+You can download and install the native Android version of the app directly from our automated build pipeline on GitHub!
+
+👉 **[Download the Latest Android APK](https://github.com/sathwikjuturu/voice-assistantce/actions/workflows/build-apk.yml)**
+
+*Instructions: Open the link above, click on the most recent run, scroll down to the **Artifacts** section, download the `VoiceMail-Android-APK` zip file, extract it, and install `app-debug.apk` on your Android device.*
+
+---
+
 ## Installation & Running Locally
 
 ### 1. Prerequisites
