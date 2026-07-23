@@ -39,6 +39,15 @@ app.use('/api/ai', aiRouter);
 app.use('/api/contacts', contactsRouter);
 app.use('/api/calendar', calendarRouter);
 
+// Prevent browsers from caching static assets in development
+// This ensures code changes take effect immediately without hard refreshes
+app.use((req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  next();
+});
+
 // Serve frontend static files
 app.use(express.static(path.join(process.cwd())));
 

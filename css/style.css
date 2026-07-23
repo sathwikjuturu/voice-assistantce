@@ -444,15 +444,27 @@ ul { list-style: none; }
     .sidebar .nav-item {
         font-size: 0 !important;
         justify-content: center !important;
-        padding: 0.8rem 0 !important;
-        margin-bottom: 0.5rem !important;
+        padding: 0.7rem 0 !important;
+        margin: 0.4rem auto !important;
+        width: 44px !important;
+        height: 44px !important;
+        border-radius: 16px !important;
         gap: 0 !important;
         transition: all 0.3s ease !important;
     }
     .sidebar .nav-item i {
-        font-size: 1.4rem !important;
+        font-size: 1.3rem !important;
         margin-right: 0 !important;
         width: auto !important;
+    }
+    .sidebar .nav-item.active {
+        border: 1.5px solid var(--accent-cyan) !important;
+        background: rgba(0, 240, 255, 0.12) !important;
+        box-shadow: 0 0 12px rgba(0, 240, 255, 0.35) !important;
+        color: var(--accent-cyan) !important;
+    }
+    .sidebar .nav-item.active i {
+        color: var(--accent-cyan) !important;
     }
 
     /* Expanded mobile state */

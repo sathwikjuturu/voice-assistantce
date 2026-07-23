@@ -6,6 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
+    "fresh": "powershell -Command \"Stop-Process -Id (Get-NetTCPConnection -LocalPort 3000 -EA SilentlyContinue | Select -Expand OwningProcess -Unique) -Force -EA SilentlyContinue\" && node server.js",
+    "build-apk": "npx cap sync android && cd android && gradlew assembleDebug",
     "cap-sync": "cap sync android"
   },
   "dependencies": {

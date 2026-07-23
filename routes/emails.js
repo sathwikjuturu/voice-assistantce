@@ -108,9 +108,19 @@ router.post('/send', (req, res) => {
     };
 
     db.emails.push(newEmail);
+
+    // Also add a copy to the recipient's inbox so they can see it
+    const inboxCopy = {
+      ...newEmail,
+      id: "mail_" + (Date.now() + 1),
+      folder: 'inbox',
+      isRead: false
+    };
+    db.emails.push(inboxCopy);
+
     writeDb(db);
 
-    res.status(211).json({ message: 'Email sent successfully', email: newEmail });
+    res.status(201).json({ message: 'Email sent successfully', email: newEmail });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

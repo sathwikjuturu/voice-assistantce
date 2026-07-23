@@ -1,5 +1,7 @@
 // VoiceMail AI - Smart Assistant Shared Controller
 // Handles Routing, State Management, API Communication, Local Fallbacks, and Voice Interactions
+// VERSION: 2.1.0 - Fixed post-login redirect-to-login race condition
+console.log('[VoiceMail AI] app.js v2.1.0 loaded');
 
 const API_BASE = '/api';
 
@@ -55,7 +57,8 @@ class AppClient {
     this.isServerMode = false;
     this.tokenKey = 'voicemail_jwt';
     this.userKey = 'voicemail_user';
-    this.checkServer();
+    // Store the promise so callers can await server-mode detection before making requests
+    this.ready = this.checkServer();
   }
 
   async checkServer() {
@@ -210,29 +213,45 @@ class AppClient {
   // Main HTTP and Storage request router
   async request(endpoint, method = 'GET', body = null) {
     if (this.isServerMode) {
-      const headers = { 'Content-Type': 'application/json' };
       const token = this.getToken();
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-      try {
-        const options = { method, headers };
-        if (body) {
-          options.body = JSON.stringify(body);
+
+      // Skip the real server only if the stored token is the localStorage mock token.
+      // This prevents sending 'ls-mock-token' as a Bearer JWT, which would cause
+      // a 401 → redirect-to-login loop. When there is NO token (login state),
+      // we still attempt the server so a real JWT can be obtained.
+      const isMockToken = token === 'ls-mock-token';
+
+      if (!isMockToken) {
+        const headers = { 'Content-Type': 'application/json' };
+        // Only attach Authorization when we actually have a real JWT
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        try {
+          const options = { method, headers };
+          if (body) options.body = JSON.stringify(body);
+
+          const res = await fetch(`${API_BASE}${endpoint}`, options);
+
+          if (res.status === 401) {
+            // JWT is expired or invalid. Do NOT call logout() here — that caused a
+            // redirect loop immediately after login. Instead, clear the stale token
+            // and fall through silently to the localStorage engine so the current
+            // page operation can still complete. The user will be redirected to login
+            // on their next page navigation via checkAuth().
+            console.warn('[Auth] Server returned 401. Clearing token and switching to localStorage mode.');
+            localStorage.removeItem(this.tokenKey);
+            localStorage.removeItem(this.userKey);
+            localStorage.removeItem('ls_current_user');
+            this.isServerMode = false;
+            this.initLocalStorageDb();
+            // Fall through to localStorage engine below
+          } else {
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Request failed');
+            return data;
+          }
+        } catch (err) {
+          console.warn(`Server request failed. Falling back to local storage: ${err.message}`);
         }
-        const res = await fetch(`${API_BASE}${endpoint}`, options);
-        if (res.status === 401) {
-          this.logout();
-          throw new Error('Session expired');
-        }
-        const data = await res.json();
-        if (!res.ok) {
-          throw new Error(data.error || 'Request failed');
-        }
-        return data;
-      } catch (err) {
-        if (err.message === 'Session expired') throw err;
-        console.warn(`Server request failed. Falling back to local storage: ${err.message}`);
       }
     }
 
@@ -334,6 +353,16 @@ class AppClient {
             date: new Date().toISOString()
           };
           db.emails.push(newMail);
+
+          // Also create an inbox copy so recipient (or self) sees the email
+          const inboxCopy = {
+            ...newMail,
+            id: 'mail_' + (Date.now() + 1),
+            folder: 'inbox',
+            isRead: false
+          };
+          db.emails.push(inboxCopy);
+
           this.saveLocalStorageDb(db);
           return { email: newMail };
         }
@@ -559,84 +588,74 @@ function initVoiceRecognition(onResultCallback, onEndCallback = null) {
 }
 
 // --- Dynamic Page Controller Bindings ---
-document.addEventListener('DOMContentLoaded', () => {
-  checkAuth();
-
-  // Bind logout links dynamically
-  const logoutBtn = document.querySelector('a[href="login.html"]');
-  if (logoutBtn) {
-    logoutBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      client.logout();
-    });
-  }
-
-  // Update dynamic user profile information
-  const profileSection = document.querySelector('.user-profile');
-  if (profileSection) {
-    const user = client.getCurrentUser();
-    if (user) {
-      const avatar = profileSection.querySelector('.avatar');
-      const nameSpan = profileSection.querySelector('span');
-      
-      const initials = user.name ? user.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'JD';
-      if (avatar) avatar.textContent = initials;
-      if (nameSpan) nameSpan.textContent = user.name || user.email;
-    }
-  }
-
-  // PAGE ROUTINES
+document.addEventListener('DOMContentLoaded', async () => {
   const path = window.location.pathname.toLowerCase();
-  
+
+  // =========================================================
+  // STEP 1: Bind all UI event handlers IMMEDIATELY (no await)
+  // This ensures buttons work even before the server ping resolves.
+  // Inside each handler, we await client.ready when actually needed.
+  // =========================================================
+
   if (path.includes('login')) {
     const emailInput = document.querySelector('input[type="email"]');
-    const passInput = document.querySelector('input[type="password"]');
-    const submitBtn = document.querySelector('.btn');
+    const passInput  = document.querySelector('input[type="password"]');
+    const submitBtn  = document.querySelector('.btn');
 
     if (submitBtn) {
       submitBtn.removeAttribute('onclick');
       submitBtn.onclick = null;
       submitBtn.addEventListener('click', async (e) => {
         e.preventDefault();
-        const email = emailInput.value.trim();
-        const password = passInput.value;
-
+        const email    = emailInput ? emailInput.value.trim() : '';
+        const password = passInput  ? passInput.value          : '';
         if (!email || !password) return showToast('Please enter both email and password', 'error');
+
+        submitBtn.disabled    = true;
+        submitBtn.textContent = 'Logging in…';
         try {
+          await client.ready; // ensure server mode is known before making the request
           const res = await client.request('/auth/login', 'POST', { email, password });
           client.setSession(res.token, res.user);
           showToast('Logged in successfully!', 'success');
           setTimeout(() => window.location.href = 'dashboard.html', 1000);
         } catch (err) {
-          showToast(err.message, 'error');
+          showToast(err.message || 'Login failed', 'error');
+          submitBtn.disabled    = false;
+          submitBtn.textContent = 'Login';
         }
       });
     }
   }
 
   else if (path.includes('signup')) {
-    const nameInput = document.querySelector('input[placeholder="Full Name"]');
-    const emailInput = document.querySelector('input[type="email"]');
-    const passInput = document.querySelector('input[type="password"]');
-    const submitBtn = document.querySelector('.btn');
+    const nameInput  = document.querySelector('#signup-name, input[placeholder="Full Name"]');
+    const emailInput = document.querySelector('#signup-email, input[type="email"]');
+    const passInput  = document.querySelector('#signup-password, input[type="password"]');
+    const submitBtn  = document.querySelector('#signup-btn, .btn');
 
     if (submitBtn) {
       submitBtn.removeAttribute('onclick');
       submitBtn.onclick = null;
       submitBtn.addEventListener('click', async (e) => {
         e.preventDefault();
-        const name = nameInput.value.trim();
-        const email = emailInput.value.trim();
-        const password = passInput.value;
-
+        const name     = nameInput  ? nameInput.value.trim()  : '';
+        const email    = emailInput ? emailInput.value.trim() : '';
+        const password = passInput  ? passInput.value          : '';
         if (!name || !email || !password) return showToast('Please fill in all fields', 'error');
+
+        submitBtn.disabled    = true;
+        submitBtn.textContent = 'Creating…';
         try {
+          await client.ready;
           const res = await client.request('/auth/signup', 'POST', { name, email, password });
           client.setSession(res.token, res.user);
-          showToast('Registered successfully!', 'success');
+          showToast('Account created successfully!', 'success');
           setTimeout(() => window.location.href = 'dashboard.html', 1000);
         } catch (err) {
-          showToast(err.message, 'error');
+          showToast(err.message || 'Signup failed', 'error');
+          submitBtn.disabled    = false;
+          submitBtn.textContent = 'Create Account';
         }
       });
     }
@@ -644,46 +663,45 @@ document.addEventListener('DOMContentLoaded', () => {
 
   else if (path.includes('forgot_password') || path.includes('forgot-password')) {
     const emailInput = document.querySelector('input[type="email"]');
-    const submitBtn = document.querySelector('.btn');
+    const submitBtn  = document.querySelector('.btn');
 
     if (submitBtn) {
       submitBtn.removeAttribute('onclick');
       submitBtn.onclick = null;
-    submitBtn.addEventListener('click', async (e) => {
-      e.preventDefault();
-      const email = emailInput.value.trim();
-      if (!email) return showToast('Please enter your email', 'error');
+      submitBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        const email = emailInput ? emailInput.value.trim() : '';
+        if (!email) return showToast('Please enter your email', 'error');
 
-      try {
-        const res = await client.request('/auth/forgot-password', 'POST', { email });
-        showToast('OTP sent to your email!', 'success');
-        if (res.devOtp) {
-          console.log(`DEV NOTE: OTP code is ${res.devOtp}`);
-        }
-        setTimeout(() => window.location.href = `otp.html?email=${encodeURIComponent(email)}`, 1000);
-      } catch (err) {
-        showToast(err.message, 'error');
-      }
-    });
-  }
-
-  else if (path.includes('otp')) {
-    const inputs = document.querySelectorAll('.auth-box div[style*="display: flex"] input');
-    const submitBtn = document.querySelector('.btn');
-    const urlParams = new URLSearchParams(window.location.search);
-    const email = urlParams.get('email');
-
-    // Auto-focus next input field on typing
-    inputs.forEach((input, index) => {
-      input.addEventListener('input', () => {
-        if (input.value.length === 1 && index < inputs.length - 1) {
-          inputs[index + 1].focus();
+        submitBtn.disabled    = true;
+        submitBtn.textContent = 'Sending…';
+        try {
+          await client.ready;
+          const res = await client.request('/auth/forgot-password', 'POST', { email });
+          showToast('OTP sent to your email!', 'success');
+          if (res.devOtp) console.log(`DEV NOTE: OTP code is ${res.devOtp}`);
+          setTimeout(() => window.location.href = `otp.html?email=${encodeURIComponent(email)}`, 1000);
+        } catch (err) {
+          showToast(err.message || 'Failed to send OTP', 'error');
+          submitBtn.disabled    = false;
+          submitBtn.textContent = 'Send OTP';
         }
       });
+    }
+  } // ← forgot_password block properly closed here
+
+  else if (path.includes('otp')) {
+    const inputs    = document.querySelectorAll('.auth-box input[maxlength="1"], .auth-box div[style*="flex"] input');
+    const submitBtn = document.querySelector('.btn');
+    const urlParams = new URLSearchParams(window.location.search);
+    const email     = urlParams.get('email');
+
+    inputs.forEach((input, index) => {
+      input.addEventListener('input', () => {
+        if (input.value.length === 1 && index < inputs.length - 1) inputs[index + 1].focus();
+      });
       input.addEventListener('keydown', (e) => {
-        if (e.key === 'Backspace' && input.value.length === 0 && index > 0) {
-          inputs[index - 1].focus();
-        }
+        if (e.key === 'Backspace' && input.value.length === 0 && index > 0) inputs[index - 1].focus();
       });
     });
 
@@ -695,26 +713,28 @@ document.addEventListener('DOMContentLoaded', () => {
         const otp = Array.from(inputs).map(i => i.value.trim()).join('');
         if (otp.length < 4) return showToast('Please enter the full OTP code', 'error');
 
+        submitBtn.disabled    = true;
+        submitBtn.textContent = 'Verifying…';
         try {
+          await client.ready;
           await client.request('/auth/verify-otp', 'POST', { email, otp });
           showToast('OTP verified!', 'success');
-          // Let's forward OTP in parameters for resetting
           setTimeout(() => window.location.href = `reset_success.html?email=${encodeURIComponent(email)}&otp=${encodeURIComponent(otp)}`, 1000);
         } catch (err) {
-          showToast(err.message, 'error');
+          showToast(err.message || 'OTP verification failed', 'error');
+          submitBtn.disabled    = false;
+          submitBtn.textContent = 'Verify OTP';
         }
       });
     }
-  }
+  } // ← otp block properly closed here
 
   else if (path.includes('reset_success')) {
-    // Let's implement reset password execution here if password fields exist, or simple message
     const urlParams = new URLSearchParams(window.location.search);
     const email = urlParams.get('email');
-    const otp = urlParams.get('otp');
+    const otp   = urlParams.get('otp');
+    const card  = document.querySelector('.auth-box');
 
-    // Add UI components if we need password input fields or bind redirect
-    const card = document.querySelector('.auth-box');
     if (card && email && otp) {
       card.innerHTML = `
         <h2>Reset Password</h2>
@@ -725,11 +745,11 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
         <button class="btn" id="btn-save-pass">Save Password</button>
       `;
-
       document.getElementById('btn-save-pass').addEventListener('click', async () => {
         const pass = document.getElementById('new-password').value;
         if (!pass || pass.length < 6) return showToast('Password must be at least 6 characters', 'error');
         try {
+          await client.ready;
           await client.request('/auth/reset-password', 'POST', { email, otp, newPassword: pass });
           showToast('Password reset successful!', 'success');
           setTimeout(() => window.location.href = 'login.html', 1500);
@@ -738,38 +758,79 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       });
     }
+  } // ← reset_success block properly closed here
+
+  // =========================================================
+  // STEP 2: Wait for server-mode detection, then run auth guard
+  // and load page-specific content.
+  // =========================================================
+  await client.ready;
+  checkAuth();
+
+  // Highlight current active page link in sidebar
+  const navLinks = document.querySelectorAll('.sidebar a');
+  navLinks.forEach(link => {
+    const href = link.getAttribute('href');
+    const navItem = link.querySelector('.nav-item');
+    if (href && navItem) {
+      const hrefClean = href.split('?')[0].toLowerCase();
+      const currentClean = path.split('/').pop().split('?')[0] || 'dashboard.html';
+      if (hrefClean === currentClean || (currentClean.startsWith('inbox') && hrefClean.startsWith('inbox'))) {
+        navItem.classList.add('active');
+      } else {
+        navItem.classList.remove('active');
+      }
+    }
+  });
+
+  // Bind logout links dynamically
+  const logoutBtn = document.querySelector('a[href="login.html"]');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      client.logout();
+    });
   }
 
-  else if (path.includes('dashboard')) {
+  // Update dynamic user profile information in the sidebar
+  const profileSection = document.querySelector('.user-profile');
+  if (profileSection) {
+    const user = client.getCurrentUser();
+    if (user) {
+      const avatar   = profileSection.querySelector('.avatar');
+      const nameSpan = profileSection.querySelector('span');
+      const initials = user.name ? user.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'JD';
+      if (avatar)   avatar.textContent   = initials;
+      if (nameSpan) nameSpan.textContent = user.name || user.email;
+    }
+  }
+
+  // Load page-specific content (all at correct nesting level, not inside forgot_password)
+  if (path.includes('dashboard')) {
     loadDashboardStats();
   }
-
   else if (path.includes('inbox') || path.includes('sent_items') || path.includes('drafts') || path.includes('spam') || path.includes('trash') || path.includes('folder=')) {
     loadEmailsList();
   }
-
   else if (path.includes('compose_email') || path.includes('compose')) {
     bindComposePage();
   }
-
   else if (path.includes('read_email') || path.includes('read-email')) {
     loadReadEmailPage();
   }
-
   else if (path.includes('contacts')) {
     loadContactsPage();
   }
-
   else if (path.includes('calendar')) {
     loadCalendarPage();
   }
-
   else if (path.includes('voice_overlay') || path.includes('voice-overlay')) {
     runVoiceOverlayListeningLoop();
   }
 });
 
 // --- Page Implementations ---
+
 
 async function loadDashboardStats() {
   try {
@@ -871,8 +932,8 @@ function bindComposePage() {
   const toInput = document.querySelector('input[type="email"]');
   const subjectInput = document.querySelector('input[placeholder="Subject:"]');
   const bodyTextarea = document.querySelector('textarea');
-  const sendBtn = document.querySelector('.btn:not(.btn-outline)');
-  const dictateBtn = document.querySelector('.btn[style*="background: var(--warning)"]');
+  const sendBtn    = document.getElementById('btn-send-email');
+  const dictateBtn  = document.getElementById('btn-dictate');
 
   if (toParam && toInput) toInput.value = toParam;
 

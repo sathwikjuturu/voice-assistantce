@@ -33,13 +33,48 @@ VoiceMail AI is a futuristic, voice-controlled, glassmorphic email assistant app
 
 ## 📱 Android Application (APK)
 
-You can download and install the native Android version of the app directly from our automated build pipeline on GitHub!
+### 🆕 Version 2.1 — Latest Build *(July 23, 2026)*
 
-👉 **[Download the Latest Android APK](https://github.com/sathwikjuturu/voice-assistantce/actions/workflows/build-apk.yml)**
+> **Direct Supabase Integration & Sleek Mobile Side Icon Rail** — Connects the APK directly to the live backend server with a compact vertical left navigation rail matching Android UI standards.
+
+**What's new in v2.1:**
+- 🎨 **Compact Side Icon Navigation Rail**: Vertical left icon column (Home/Dashboard, Inbox, Sent, Drafts, Folders, Contacts, Calendar, Settings, Help, Logout) designed for mobile screens.
+- 💡 **Cyan Glowing Active Pill Indicator**: Active page icon (e.g. Contacts, Inbox) is highlighted with a rounded cyan pill border & aura (`box-shadow: 0 0 12px rgba(0, 240, 255, 0.35)`).
+- 🔄 **Dynamic Navigation**: Active state automatically tracks current route across all mobile pages.
+- ✅ APK connects to live backend (`http://172.23.52.47:3000`) — logins, signups, and email sync directly to Supabase.
+- ✅ Fixed: Login, Create Account, and Send Email button handlers.
+- ✅ Fixed: Sent emails now generate recipient inbox copies automatically.
+
+**APK Location (local build):**
+```
+android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+**To rebuild the APK yourself:**
+```bash
+npx cap sync android
+cd android
+.\gradlew assembleDebug
+```
+
+**Install on Android device:**
+1. Enable **"Install Unknown Apps"** in Settings → Apps → Special App Access
+2. Transfer `app-debug.apk` to phone via USB, WhatsApp, or Google Drive
+3. Open the file on phone → tap **Install**
+4. ⚠️ Phone and PC must be on the **same Wi-Fi network** for the app to connect to the backend
+
+---
+
+### Version 1.0 — Initial Release
+
+You can download and install the initial Android version from GitHub Actions:
+
+👉 **[Download v1.0 APK from GitHub Actions](https://github.com/sathwikjuturu/voice-assistantce/actions/workflows/build-apk.yml)**
 
 *Instructions: Open the link above, click on the most recent run, scroll down to the **Artifacts** section, download the `VoiceMail-Android-APK` zip file, extract it, and install `app-debug.apk` on your Android device.*
 
 ---
+
 
 ## Installation & Running Locally
 

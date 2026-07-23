@@ -1,6 +1,12 @@
 {
   "appId": "com.voicemail.ai",
   "appName": "VoiceMail AI Assistant",
-  "webDir": "dist",
-  "bundledWebRuntime": false
+  "webDir": "www",
+  "server": {
+    "url": "http://172.23.52.47:3000",
+    "cleartext": true
+  },
+  "android": {
+    "allowMixedContent": true
+  }
 }
