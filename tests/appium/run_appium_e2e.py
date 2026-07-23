@@ -192,8 +192,7 @@ def run_all_tests(driver, base_url: str) -> list:
         duration = r["duration"]
         error   = r["error"]
 
-        if idx % 30 == 0 or idx == 1 or idx == total:
-            log.info(f"[{idx}/{total}] {tc_id}: {r['name']} -> {status} ({duration}s)")
+        log.info(f"[{idx}/300] {tc_id}: {r['name']} -> {status} ({duration}s)")
 
         results.append({
             "id":         tc_id,
