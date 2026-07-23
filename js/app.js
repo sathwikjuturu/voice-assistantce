@@ -597,6 +597,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Inside each handler, we await client.ready when actually needed.
   // =========================================================
 
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
   if (path.includes('login')) {
     const emailInput = document.querySelector('input[type="email"]');
     const passInput  = document.querySelector('input[type="password"]');
@@ -610,6 +612,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const email    = emailInput ? emailInput.value.trim() : '';
         const password = passInput  ? passInput.value          : '';
         if (!email || !password) return showToast('Please enter both email and password', 'error');
+        if (!emailRegex.test(email)) return showToast('Please enter a valid email address', 'error');
 
         submitBtn.disabled    = true;
         submitBtn.textContent = 'Logging in…';
@@ -643,6 +646,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const email    = emailInput ? emailInput.value.trim() : '';
         const password = passInput  ? passInput.value          : '';
         if (!name || !email || !password) return showToast('Please fill in all fields', 'error');
+        if (!emailRegex.test(email)) return showToast('Please enter a valid email address', 'error');
 
         submitBtn.disabled    = true;
         submitBtn.textContent = 'Creating…';

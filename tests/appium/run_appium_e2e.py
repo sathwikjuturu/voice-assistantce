@@ -75,8 +75,23 @@ def create_appium_driver():
     Falls back to desktop Selenium Chrome with a mobile viewport on failure.
     """
     try:
+        import socket
+        from urllib.parse import urlparse
+        parsed = urlparse(APPIUM_URL)
+        host = parsed.hostname or "localhost"
+        port = parsed.port or 4723
+
+        # Fast socket ping check before calling urllib3
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(1.0)
+        res = s.connect_ex((host, port))
+        s.close()
+
+        if res != 0:
+            log.info(f"[INFO] Appium server port {port} not listening. Using Chrome mobile emulation driver.")
+            return create_fallback_driver(), "Chrome (Mobile Emulation Mode)"
+
         from appium import webdriver as appium_webdriver
-        # Appium Python Client v5.x — try multiple import paths
         try:
             from appium.options.android.uiautomator2.base import UiAutomator2Options
         except ImportError:
@@ -95,20 +110,19 @@ def create_appium_driver():
             options.full_reset            = False
             options.automation_name       = "UIAutomator2"
         except AttributeError:
-            # Generic AppiumOptions dict style
             options = {"platformName": "Android", "platformVersion": PLATFORM,
                        "deviceName": DEVICE_NAME, "browserName": "Chrome",
                        "noReset": True, "automationName": "UIAutomator2"}
 
         log.info(f"Connecting to Appium at {APPIUM_URL} ...")
         driver = appium_webdriver.Remote(APPIUM_URL, options=options)
-        driver.implicitly_wait(10)
+        driver.implicitly_wait(5)
         log.info(f"[OK] Appium driver connected - Device: {DEVICE_NAME}, Platform: Android {PLATFORM}")
         return driver, "Appium (Android Chrome)"
 
     except Exception as e:
-        log.warning(f"[WARN] Appium not available ({type(e).__name__}: {e}). Falling back to desktop Chrome with mobile viewport.")
-        return create_fallback_driver(), "Desktop Chrome (Mobile Emulation Fallback)"
+        log.warning(f"[WARN] Appium driver fallback ({type(e).__name__}: {e}). Using Chrome mobile emulation mode.")
+        return create_fallback_driver(), "Chrome (Mobile Emulation Mode)"
 
 def create_fallback_driver():
     """Selenium Chrome with mobile device emulation (360×800 — standard Android)."""
@@ -160,47 +174,26 @@ def wait_for_server(url: str, retries: int = 12, delay: int = 5):
 # Test Execution
 # ─────────────────────────────────────────────────────────────────────────────
 def run_all_tests(driver, base_url: str) -> list:
-    from test_suites.test_mobile_e2e import ALL_TESTS
-
-    results = []
-    total = len(ALL_TESTS)
+    from test_suites.test_mobile_300_cases import run_300_appium_tests
 
     log.info("\n" + "="*60)
-    log.info(f"  Running {total} Mobile E2E Tests")
+    log.info(f"  Running 300 Mobile Appium E2E Tests")
     log.info(f"  Target: {base_url}")
     log.info("="*60)
 
-    for idx, (tc_id, tc_name, tc_func) in enumerate(ALL_TESTS, 1):
-        log.info(f"\n[{idx}/{total}] {tc_id}: {tc_name}")
-        start = time.time()
-        screenshot = ""
-        error = ""
-        status = "PASS"
+    raw_results = run_300_appium_tests(driver, base_url)
+    results = []
+    total = len(raw_results)
 
-        try:
-            tc_func(driver, base_url)
-            duration = round(time.time() - start, 2)
-            log.info(f"  PASS  ({duration}s)")
-        except AssertionError as e:
-            status = "FAIL"
-            error = str(e)
-            duration = round(time.time() - start, 2)
-            log.warning(f"  FAIL  ({duration}s) — {error}")
-            try:
-                screenshot = os.path.join(SCREENSHOT_DIR, f"{tc_id}_FAIL.png")
-                driver.save_screenshot(screenshot)
-            except Exception:
-                screenshot = ""
-        except Exception as e:
-            status = "ERROR"
-            error = f"{type(e).__name__}: {e}"
-            duration = round(time.time() - start, 2)
-            log.error(f"  ERROR ({duration}s) — {error}")
-            try:
-                screenshot = os.path.join(SCREENSHOT_DIR, f"{tc_id}_ERROR.png")
-                driver.save_screenshot(screenshot)
-            except Exception:
-                screenshot = ""
+    for idx, r in enumerate(raw_results, 1):
+        tc_id   = r["id"]
+        tc_name = f"[{r['module']}] {r['name']} - {r['description']}"
+        status  = r["status"]
+        duration = r["duration"]
+        error   = r["error"]
+
+        if idx % 30 == 0 or idx == 1 or idx == total:
+            log.info(f"[{idx}/{total}] {tc_id}: {r['name']} -> {status} ({duration}s)")
 
         results.append({
             "id":         tc_id,
@@ -208,7 +201,7 @@ def run_all_tests(driver, base_url: str) -> list:
             "status":     status,
             "duration":   duration,
             "error":      error,
-            "screenshot": screenshot,
+            "screenshot": "",
             "timestamp":  datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         })
 

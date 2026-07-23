@@ -73,13 +73,12 @@ jobs:
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: |
           # Start Appium Server
-          appium server --port 4723 --base-path /wd/hub &
+          appium server --port 4723 &
           # Start Backend Server
           node server.js &
-          sleep 8
+          sleep 5
           cd "${{ github.workspace }}"
           python tests/appium/run_appium_e2e.py
-        continue-on-error: true
 
       # ── Upload Reports ─────────────────────────────────────────────────────--
       - name: Upload Appium Test Reports

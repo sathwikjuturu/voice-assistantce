@@ -6,12 +6,18 @@ import { readDb, writeDb } from '../db.js';
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'voicemail-secret-key-12345';
 
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 // Signup Endpoint
 router.post('/signup', async (req, res) => {
   try {
     const { name, email, password } = req.body;
     if (!name || !email || !password) {
       return res.status(400).json({ error: 'All fields are required' });
+    }
+
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ error: 'Please enter a valid email address' });
     }
 
     const db = readDb();
@@ -34,7 +40,7 @@ router.post('/signup', async (req, res) => {
     writeDb(db);
 
     const token = jwt.sign({ userId: newUser.id, email: newUser.email }, JWT_SECRET, { expiresIn: '7d' });
-    res.status(211).json({ message: 'User registered successfully', token, user: { name: newUser.name, email: newUser.email } });
+    res.status(200).json({ message: 'User registered successfully', token, user: { name: newUser.name, email: newUser.email } });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -48,15 +54,19 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ error: 'Please enter a valid email address' });
+    }
+
     const db = readDb();
     const user = db.users.find(u => u.email.toLowerCase() === email.toLowerCase());
     if (!user) {
-      return res.status(400).json({ error: 'Invalid email or password' });
+      return res.status(400).json({ error: 'Login failed: Account not found' });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(400).json({ error: 'Invalid email or password' });
+      return res.status(400).json({ error: 'Login failed: Incorrect password' });
     }
 
     const token = jwt.sign({ userId: user.id, email: user.email, name: user.name }, JWT_SECRET, { expiresIn: '7d' });
